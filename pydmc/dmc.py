@@ -108,7 +108,7 @@ class Sim:
             type of delta calculation (1=direct percentile points, 2=percentile bounds (tile) average)
         full_data: bool True, optional
             run simulation to t_max to calculate activation NB. only required when plotting activation function
-            or inddividual trials
+            or individual trials
         n_trls_data: int 5, optional
             number of individual trials to store
         run_simulation: bool True, optional
@@ -486,7 +486,7 @@ class Ob:
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
-        outlier: tuple = (200, 1200),
+        outlier: tuple = (150, 2000),
         columns: tuple = ("Subject", "Comp", "RT", "Error"),
         comp_coding: tuple = ("comp", "incomp"),
         error_coding: tuple = (0, 1),
@@ -782,10 +782,6 @@ class Ob:
 
 @dataclass
 class PrmsFit:
-    '''
-    Creates a PlotFit according to set parameters.
-    '''
-
     # start, min, max, fitted, initial grid search
     amp: tuple = (20, 0, 40, True, False)
     tau: tuple = (30, 5, 300, True, True)
