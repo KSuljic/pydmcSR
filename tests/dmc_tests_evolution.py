@@ -15,9 +15,6 @@ importlib.reload(pydmc)
 
 
 # %%
-%matplotlib widget
-
-# %%
 Data = pydmc.flanker_data()
 Data.head()
 
@@ -33,7 +30,6 @@ fit_diff.fit_data('differential_evolution', maxiter=30)
 # %%
 # TODO: extract parameters with lowest cost
 
-fit_diff.
 
 # %%
 fit_diff.table_summary()

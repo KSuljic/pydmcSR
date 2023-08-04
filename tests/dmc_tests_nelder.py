@@ -15,9 +15,6 @@ importlib.reload(pydmc)
 
 
 # %%
-%matplotlib widget
-
-# %%
 Data = pydmc.flanker_data()
 Data.head()
 
