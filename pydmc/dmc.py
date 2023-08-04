@@ -71,7 +71,7 @@ class Prms:
     sp_shape: float = 3
     sigma: float = 4
     res_dist: int = 1
-    t_max: int = 1000
+    t_max: int = 2000
     sp_dist: int = 0
     sp_lim: tuple = (-75, 75)
     sp_bias: float = 0.0
@@ -782,6 +782,10 @@ class Ob:
 
 @dataclass
 class PrmsFit:
+    '''
+    Creates a PlotFit according to set parameters.
+    '''
+
     # start, min, max, fitted, initial grid search
     amp: tuple = (20, 0, 40, True, False)
     tau: tuple = (30, 5, 300, True, True)
@@ -1200,7 +1204,7 @@ class Plot:
         plt.show(block=False)
 
     def _summary1_res_ob(self, **kwargs):
-        """Plot summaty observed data."""
+        """Plot summary observed data."""
 
         # upper left panel (rt correct)
         plt.subplot2grid((3, 2), (0, 0))
@@ -1606,6 +1610,11 @@ class Plot:
 
 
 class PlotFit:
+
+    '''
+    Example: fit_plot = pydmc.PlotFit(fit).summary()
+    '''
+
     def __init__(self, res: Fit):
 
         assert isinstance(res, Fit), "res must be of type 'Fit'"

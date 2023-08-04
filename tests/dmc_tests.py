@@ -1,15 +1,55 @@
 #%%
-import pydmc
+import os
 
-dmc_sim = pydmc.Sim()
-dmc_sim.plot.summary()      # Fig 2
-dmc_sim = pydmc.Sim(full_data=True)
-dmc_sim.plot.summary()      # Fig 3
-dmc_sim = pydmc.Sim(pydmc.Prms(tau = 150))
-dmc_sim.plot.summary()      # Fig 4
-dmc_sim = pydmc.Sim(pydmc.Prms(tau = 90))
-dmc_sim.plot.summary()      # Fig 5
-dmc_sim = pydmc.Sim(pydmc.Prms(sp_dist = 1))
-dmc_sim.plot.summary()      # Fig 6
-dmc_sim = pydmc.Sim(pydmc.Prms(dr_dist = 1))
-dmc_sim.plot.summary()      # Fig 7
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+import pydmc
+from pydmc import Ob, Fit, Sim, PlotFit, Plot
+#%%%
+%matplotlib widget
+
+# %%
+Data = pydmc.flanker_data()
+Data.head()
+
+# %%
+res_ob = Ob(Data, n_caf=9)
+
+# %%
+fit = Fit(res_ob, n_caf=9)
+
+
+# %% fits the data 
+fit.fit_data()
+
+
+
+# %%
+# fit_diff = Fit(res_ob, n_caf=9)
+# fit_diff.fit_data('differential_evolution', maxiter=20)
+
+
+
+
+# %%
+fit.table_summary()
+
+
+# %%
+# fit_diff.table_summary()
+
+
+
+# %%
+fit_plot = PlotFit(fit).summary()
+
+# %%
+sim = Sim(fit.dmc_prms, n_caf=9, full_data=True, n_trls_data=100)
+# %%
+
+# %%
+Plot(sim).summary()
+# %%
+Fit.calculate_cost_value_rmse(sim, res_ob)
