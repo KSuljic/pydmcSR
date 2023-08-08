@@ -45,10 +45,12 @@ fit_diff = Fit(res_ob, start_vals=prmsfit, n_caf=9)
 
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=50)
+fit_diff.fit_data('differential_evolution', maxiter=100)
 
 # %%
-best_prms_dict = asdict(fit_diff.best_prms)
+best_prms_dict = asdict(fit_diff.best_prms_out)
+fit_diff.table_summary()
+
 
 # %%
 prmsfit.set_start_values(**best_prms_dict)
@@ -59,7 +61,7 @@ fit_diff_adv = Fit(res_ob, start_vals=prmsfit, search_grid=False, n_caf=9)
 
 # %%
 #fit_diff.fit_data('differential_evolution', maxiter=10)
-fit_diff_adv.fit_data(maxiter=100)
+fit_diff_adv.fit_data(maxiter=300)
 
 
 
@@ -93,16 +95,17 @@ prms_instance = Prms(
 # %%
 fit_plot = PlotFit(fit_diff_adv).summary()
 
+# %%
+fit_diff_adv.res_th.prms
 
 # %%
-result_para = fit_diff_adv.best_prms
+#result_para = fit_diff_adv.best_prms_out
+result_para = fit_diff_adv.res_th.prms
 
 
 # %%
 sim = Sim(result_para, n_caf=9, full_data=True, n_trls_data=20)
 # sim = Sim(prms_instance, n_caf=9, full_data=True, n_trls_data=20)
-
-# %%
 
 # %%
 Plot(sim).summary()
