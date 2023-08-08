@@ -1,8 +1,15 @@
 """
+Adapted by:
+
 DMC model simulation detailed in  Ulrich, R., Schröter, H., Leuthold, H.,
 & Birngruber, T. (2015). Automatic and controlled stimulus processing
 in conflict tasks: Superimposed diffusion processes and delta functions.
 Cognitive Psychology, 78, 148-174.
+
+
+Author: Kenan Suljic
+Date: 08.08.2023
+
 """
 import copy
 import glob
@@ -18,6 +25,7 @@ from numba import jit, prange
 from scipy.stats.mstats import mquantiles
 from scipy.optimize import minimize, differential_evolution
 from typing import Union
+from random import seed, uniform
 
 
 @dataclass
@@ -52,7 +60,7 @@ class Prms:
     sp_dist: int, optional
         starting point distribution (0 = constant, 1 = beta, 2 = uniform)
     sp_lim: tuple, optional
-        limiit range of distribution of starting point
+        limit range of distribution of starting point
     dr_dist: int, optional
         drift rate distribution (0 = constant, 1 = beta, 2 = uniform)
     dr_lim: tuple, optional
@@ -183,8 +191,9 @@ class Sim:
         self.data = []
         for comp in (1, -1):
 
+            # eq5 -  time-dependent drift of automatic function
             drc = (
-                comp
+                comp # either positive if congruent or negative for incongruent
                 * self.eq4
                 * ((self.prms.aa_shape - 1) / self.tim - 1 / self.prms.tau)
             )
@@ -783,15 +792,15 @@ class Ob:
 @dataclass
 class PrmsFit:
     # start, min, max, fitted, initial grid search
-    amp: tuple = (20, 0, 40, True, False)
-    tau: tuple = (30, 5, 300, True, True)
-    drc: tuple = (0.5, 0.1, 1.0, True, False)
-    bnds: tuple = (75, 20, 150, True, False)
-    res_mean: tuple = (300, 200, 800, True, False)
-    res_sd: tuple = (30, 5, 100, True, False)
-    aa_shape: tuple = (2, 1, 3, True, False)
-    sp_shape: tuple = (3, 2, 4, True, False)
-    sigma: tuple = (4, 1, 10, False, False)
+    amp: tuple = (20, 0, 40, True, False) # default: 20, 0, 40 - Amplitude of automatic activation
+    tau: tuple = (30, 5, 1000, True, True) # default: 30, 5, 300 - Time of peak automatic activation with peak being tau ⋅ (aaShape - 1)
+    drc: tuple = (0.5, 0.05, 1.0, True, False) # default: 0.5, 0.1, 1.0 - Drift rate of the controlled activation
+    bnds: tuple = (75, 20, 150, True, False) # default: 75, 20, 150 - Decision boundary where response executed (boundary separation ​= ​bnds ⋅ 2)
+    res_mean: tuple = (300, 100, 800, True, False) # default: 300, 200, 800 - Mean of the normal distribution of the residual (R) stage
+    res_sd: tuple = (30, 5, 100, True, False) # default: 30, 5, 100 - 	Standard deviation of the normal distribution of the residual (R) stage
+    aa_shape: tuple = (2, 1, 5, True, False) # default: 2, 1, 3 - Shape parameter of the gamma distribution for tau
+    sp_shape: tuple = (3, 1, 5, True, False) # default: 3, 2, 4 - 	Shape parameter of the beta distribution for starting point variability
+    sigma: tuple = (4, 1, 10, False, False) # default: 4, 1, 10 - Scaling parameter of the drift diffusion process
 
     def set_start_values(self, **kwargs) -> None:
         self._set_values(0, **kwargs)
@@ -818,6 +827,17 @@ class PrmsFit:
             )
             for k, v in kwargs.items()
         ]
+
+    
+    def set_random_start_values(self, seed_value=None) -> None:
+        if seed_value is not None:
+            seed(seed_value)
+        random_values = {
+            k: uniform(v[1], v[2])
+            for k, v in asdict(self).items() if v[-2] and v[-3]
+        }
+        self.set_start_values(**random_values)
+
 
     def dmc_prms(self, sp_dist: int = 1) -> Prms:
         return Prms(
@@ -865,6 +885,9 @@ class Fit:
         self.cost_function = self._assign_cost_function(cost_function)
         self.cost_value = np.Inf
         self.plot: None
+        # to track the best parameter
+        self.best_prms_out = None
+        self.best_cost = np.Inf
 
     def _assign_cost_function(self, cost_function: str):
         if cost_function == "RMSE":
@@ -919,6 +942,8 @@ class Fit:
             bounds=self.start_vals.bounds(),
             options=kwargs,
         )
+        self.res_th.prms = self.best_prms_out  # Set the best parameters
+        self.cost_value = self.best_cost
 
     def _fit_data_differential_evolution(self, **kwargs) -> None:
         kwargs.setdefault("maxiter", 10)
@@ -928,6 +953,8 @@ class Fit:
             self.start_vals.bounds(),
             **kwargs,
         )
+        self.res_th.prms = self.best_prms_out  # Set the best parameters
+        self.cost_value = self.best_cost
 
     def print_summary(self) -> None:
         """Print summary of DmcFit."""
@@ -940,9 +967,9 @@ class Fit:
             f"res_sd:{self.res_th.prms.res_sd:4.1f}",
             f"aa_shape:{self.res_th.prms.aa_shape:4.1f}",
             f"sp_shape:{self.res_th.prms.sp_shape:4.1f}",
-            f"sp_shape:{self.res_th.prms.sp_bias:4.1f}",
-            f"sp_shape:{self.res_th.prms.dr_shape:4.1f}",
-            f"sp_shape:{self.res_th.prms.sigma:4.1f}",
+            f"sp_bias:{self.res_th.prms.sp_bias:4.1f}",
+            f"dr_shape:{self.res_th.prms.dr_shape:4.1f}",
+            f"sigma:{self.res_th.prms.sigma:4.1f}",
             f"| cost={self.cost_value:.2f}",
         )
 
@@ -983,6 +1010,12 @@ class Fit:
         self._update_parameters(x)
         self.res_th.run_simulation()
         self.cost_value = self.cost_function(self.res_th, self.res_ob)
+
+        # Check if the current cost value is less than the best cost
+        if self.cost_value < self.best_cost:
+            self.best_cost = self.cost_value
+            self.best_prms_out = copy.deepcopy(self.res_th.prms)  # Make sure to create a deep copy
+
         self.print_summary()
 
         return self.cost_value
@@ -994,6 +1027,7 @@ class Fit:
                 setattr(self.res_th.prms, k, x[idx])
                 idx += 1
         self.res_th.prms.sp_lim = (-self.res_th.prms.bnds, self.res_th.prms.bnds)
+
 
     @staticmethod
     def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:

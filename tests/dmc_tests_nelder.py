@@ -22,10 +22,18 @@ Data.head()
 res_ob = Ob(Data, n_caf=9)
 
 # %%
-fit = Fit(res_ob, n_caf=9)
+prmsfit = PrmsFit()
+#prmsfit.dmc_prms()
+prmsfit.set_random_start_values(seed_value=42)
+prmsfit
+#PrmsFit.set_start_values()
+
+
+# %%
+fit = Fit(res_ob, start_vals=prmsfit, n_caf=9)
 
 # %% fits the data 
-fit.fit_data(maxiter=1500)
+fit.fit_data(maxiter=500)
 
 
 
