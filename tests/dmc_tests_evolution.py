@@ -10,6 +10,7 @@ Date: 08.08.2023
 import os
 
 from dataclasses import asdict
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -45,19 +46,47 @@ fit_diff = Fit(res_ob, start_vals=prmsfit, n_caf=9)
 
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=75)
+fit_diff.fit_data('differential_evolution', maxiter=1)
 
 # %%
-best_prms_dict = asdict(fit_diff.best_prms_out)
-fit_diff.table_summary()
+fit_diff.print_summary()
 
 
 # %%
-prmsfit.set_start_values(**best_prms_dict)
-prmsfit
+PlotFit(fit_diff).summary()
+
 
 # %%
-fit_diff_adv = Fit(res_ob, start_vals=prmsfit, search_grid=False, n_caf=9)
+#prms_res = fit_diff.return_result_prms()
+#prms_res
+
+
+# %%
+fit_diff.res_th.prms
+
+# %%
+fit_diff.res_th.plot.summary()
+
+
+
+# %%
+sim = Sim(prms=fit_diff.res_th.prms, n_caf=9, full_data=True)
+
+# %%
+print(sim.prms)
+Plot(sim).summary()
+
+
+
+# %%
+prmsfit_res_adv = PrmsFit()
+best_prms_dict = asdict(prms_res)
+prmsfit_res_adv.set_start_values(**best_prms_dict)
+prmsfit_res_adv
+
+
+# %%
+fit_diff_adv = Fit(res_ob, start_vals=prmsfit_res_adv, search_grid=False, n_caf=9)
 
 # %%
 #fit_diff.fit_data('differential_evolution', maxiter=10)
@@ -93,25 +122,24 @@ prms_instance = Prms(
 
 
 # %%
-fit_plot = PlotFit(fit_diff_adv).summary()
-
-# %%
-fit_diff_adv.res_th.prms
-
-# %%
-#result_para = fit_diff_adv.best_prms_out
-result_para = fit_diff_adv.res_th.prms
+PlotFit(fit_diff_adv).summary()
 
 
 # %%
-sim = Sim(result_para, n_caf=9, full_data=True, n_trls_data=20)
+prms_res_adv = fit_diff_adv.return_result_prms()
+
+
+
+# %%
+sim = Sim(prms_res_adv, n_caf=9, full_data=True, n_trls_data=20)
 # sim = Sim(prms_instance, n_caf=9, full_data=True, n_trls_data=20)
 
 # %%
 Plot(sim).summary()
 
 # %%
-Fit.calculate_cost_value_rmse(sim, res_ob)
+print(f'RMSE: {Fit.calculate_cost_value_rmse(sim, res_ob)}')
+print(f'SPE (%): {Fit.calculate_cost_value_spe(sim, res_ob)*100:4.2f}')
 
 
 # %%
@@ -129,3 +157,4 @@ sns.histplot(data=df2,
 sns.histplot(data=Data,
              x='RT',
              hue='Error')
+# %%

@@ -799,7 +799,7 @@ class PrmsFit:
     res_mean: tuple = (300, 100, 800, True, False) # default: 300, 200, 800 - Mean of the normal distribution of the residual (R) stage
     res_sd: tuple = (30, 5, 100, True, False) # default: 30, 5, 100 - 	Standard deviation of the normal distribution of the residual (R) stage
     aa_shape: tuple = (2, 1, 5, True, False) # default: 2, 1, 3 - Shape parameter of the gamma distribution for tau
-    sp_shape: tuple = (3, 1, 5, True, False) # default: 3, 2, 4 - 	Shape parameter of the beta distribution for starting point variability
+    sp_shape: tuple = (3, 2, 5, True, False) # default: 3, 2, 4 - 	Shape parameter of the beta distribution for starting point variability
     sigma: tuple = (4, 1, 10, False, False) # default: 4, 1, 10 - Scaling parameter of the drift diffusion process
 
     def set_start_values(self, **kwargs) -> None:
@@ -859,8 +859,9 @@ class Fit:
         self,
         res_ob: Ob,
         n_trls: int = 100_000,
-        sim_prms: Prms = Prms(sp_dist=1),
-        start_vals: PrmsFit = PrmsFit(),
+        sim_prms: Prms = Prms(sp_dist=1), # simulation parameters of type 'Prms'
+        #sim_prms: Prms = Prms(), # simulation parameters of type 'Prms'
+        start_vals: PrmsFit = PrmsFit(), # Starting values for parameters, instance of PrmsFit
         search_grid: bool = True,
         n_grid: int = 10,
         n_delta: int = 19,
@@ -877,7 +878,7 @@ class Fit:
         self.start_vals = start_vals
         self.search_grid = search_grid
         self.n_grid = n_grid
-        self.dmc_prms = start_vals.dmc_prms()
+        self.dmc_prms = start_vals.dmc_prms() # Derived parameters for the DMC model.
         self.n_delta = n_delta
         self.p_delta = p_delta
         self.t_delta = t_delta
@@ -886,10 +887,13 @@ class Fit:
         self.cost_value = np.Inf
         self.plot: None
         # to track the best parameter
-        self.best_prms_out = None
-        self.best_cost = np.Inf
+        self.best_prms_out = None # Best parameters found during fitting.
+        self.best_cost = np.Inf #  Best cost value found during fitting.
 
     def _assign_cost_function(self, cost_function: str):
+        '''
+        Assigns the cost function based on the input string.
+        '''
         if cost_function == "RMSE":
             return self.calculate_cost_value_rmse
         elif cost_function == "SPE":
@@ -898,7 +902,9 @@ class Fit:
             raise Exception("cost function not implemented!")
 
     def _search_grid(self) -> None:
-
+        '''
+        Performs a grid search over parameter space, finding the best combination that minimizes the cost function.
+        '''
         grid_space = {}
         for p in asdict(self.start_vals).items():
             if p[1][-1]:
@@ -922,6 +928,9 @@ class Fit:
         self.dmc_prms = self.start_vals.dmc_prms()
 
     def fit_data(self, method: str = "nelder-mead", **kwargs) -> None:
+        '''
+        Handles the fitting process, either using Nelder-Mead or differential evolution, depending on the input.
+        '''
 
         self.res_th = Sim(copy.deepcopy(self.sim_prms))
 
@@ -942,8 +951,8 @@ class Fit:
             bounds=self.start_vals.bounds(),
             options=kwargs,
         )
-        self.res_th.prms = self.best_prms_out  # Set the best parameters
         self.cost_value = self.best_cost
+        self.res_th = Sim(copy.deepcopy(self.best_prms_out))
 
     def _fit_data_differential_evolution(self, **kwargs) -> None:
         kwargs.setdefault("maxiter", 10)
@@ -953,8 +962,10 @@ class Fit:
             self.start_vals.bounds(),
             **kwargs,
         )
-        self.res_th.prms = self.best_prms_out  # Set the best parameters
+        #self.res_th.prms = self.best_prms_out  # Set the best parameters
         self.cost_value = self.best_cost
+        self.res_th = Sim(copy.deepcopy(self.best_prms_out))
+
 
     def print_summary(self) -> None:
         """Print summary of DmcFit."""
@@ -972,6 +983,13 @@ class Fit:
             f"sigma:{self.res_th.prms.sigma:4.1f}",
             f"| cost={self.cost_value:.2f}",
         )
+
+    def return_result_prms(self) -> Prms:
+        '''
+        Returns parameters after fitting.
+        '''
+        return self.res_th.prms
+
 
     def table_summary(self) -> pd.DataFrame:
         """Table summary."""
@@ -1006,7 +1024,9 @@ class Fit:
         )
 
     def _function_to_minimise(self, x: list) -> float:
-
+        '''
+        Function to be minimized by the optimization algorithm. Updates the parameters and computes the cost.
+        '''
         self._update_parameters(x)
         self.res_th.run_simulation()
         self.cost_value = self.cost_function(self.res_th, self.res_ob)
