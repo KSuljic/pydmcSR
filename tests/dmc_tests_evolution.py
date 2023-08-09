@@ -46,7 +46,7 @@ fit_diff = Fit(res_ob, start_vals=prmsfit, n_caf=9)
 
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=1)
+fit_diff.fit_data('differential_evolution', maxiter=30)
 
 # %%
 fit_diff.print_summary()
@@ -67,30 +67,34 @@ fit_diff.res_th.prms
 # %%
 fit_diff.res_th.plot.summary()
 
+# %%
+best_prms = fit_diff.res_th.prms
 
 
 # %%
-sim = Sim(prms=fit_diff.res_th.prms, n_caf=9, full_data=True)
+sim = Sim(prms=best_prms, n_caf=9, full_data=False)
 
 # %%
 print(sim.prms)
 Plot(sim).summary()
 
+# %% 
+Fit.calculate_cost_value_rmse(sim, res_ob)
 
 
 # %%
-prmsfit_res_adv = PrmsFit()
-best_prms_dict = asdict(prms_res)
-prmsfit_res_adv.set_start_values(**best_prms_dict)
-prmsfit_res_adv
+prmsfit_adv = PrmsFit()
+best_prms_dict = asdict(best_prms)
+prmsfit_adv.set_start_values(**best_prms_dict)
+prmsfit_adv
 
 
 # %%
-fit_diff_adv = Fit(res_ob, start_vals=prmsfit_res_adv, search_grid=False, n_caf=9)
+fit_diff_adv = Fit(res_ob, start_vals=prmsfit_adv, search_grid=False, n_caf=9)
 
 # %%
 #fit_diff.fit_data('differential_evolution', maxiter=10)
-fit_diff_adv.fit_data(maxiter=300)
+fit_diff_adv.fit_data(maxiter=200)
 
 
 
@@ -126,16 +130,16 @@ PlotFit(fit_diff_adv).summary()
 
 
 # %%
-prms_res_adv = fit_diff_adv.return_result_prms()
+best_prms_adv = fit_diff_adv.res_th.prms
 
 
 
 # %%
-sim = Sim(prms_res_adv, n_caf=9, full_data=True, n_trls_data=20)
+sim = Sim(best_prms_adv, n_caf=9, full_data=False)
 # sim = Sim(prms_instance, n_caf=9, full_data=True, n_trls_data=20)
 
 # %%
-Plot(sim).summary()
+sim.plot.summary()
 
 # %%
 print(f'RMSE: {Fit.calculate_cost_value_rmse(sim, res_ob)}')
