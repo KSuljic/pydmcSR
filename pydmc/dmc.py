@@ -793,7 +793,7 @@ class Ob:
 class PrmsFit:
     # start, min, max, fitted, initial grid search
     amp: tuple = (20, 0, 40, True, False) # default: 20, 0, 40 - Amplitude of automatic activation
-    tau: tuple = (30, 5, 1000, True, True) # default: 30, 5, 300 - Time of peak automatic activation with peak being tau ⋅ (aaShape - 1)
+    tau: tuple = (30, 5, 800, True, True) # default: 30, 5, 300 - Time of peak automatic activation with peak being tau ⋅ (aaShape - 1)
     drc: tuple = (0.5, 0.05, 1.0, True, False) # default: 0.5, 0.1, 1.0 - Drift rate of the controlled activation
     bnds: tuple = (75, 20, 150, True, False) # default: 75, 20, 150 - Decision boundary where response executed (boundary separation ​= ​bnds ⋅ 2)
     res_mean: tuple = (300, 100, 800, True, False) # default: 300, 200, 800 - Mean of the normal distribution of the residual (R) stage

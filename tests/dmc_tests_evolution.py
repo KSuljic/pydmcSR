@@ -45,7 +45,7 @@ fit_diff = Fit(res_ob, start_vals=prmsfit, n_caf=9)
 
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=100)
+fit_diff.fit_data('differential_evolution', maxiter=75)
 
 # %%
 best_prms_dict = asdict(fit_diff.best_prms_out)
