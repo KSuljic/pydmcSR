@@ -1,8 +1,15 @@
 """
+Adapted by:
+
 DMC model simulation detailed in  Ulrich, R., Schröter, H., Leuthold, H.,
 & Birngruber, T. (2015). Automatic and controlled stimulus processing
 in conflict tasks: Superimposed diffusion processes and delta functions.
 Cognitive Psychology, 78, 148-174.
+
+
+Author: Kenan Suljic
+Date: 08.08.2023
+
 """
 import copy
 import glob
@@ -18,12 +25,14 @@ from numba import jit, prange
 from scipy.stats.mstats import mquantiles
 from scipy.optimize import minimize, differential_evolution
 from typing import Union
+from random import seed, uniform
 
 
 @dataclass
 class Prms:
     """
     DMC Parameters
+
     ----------
     amp: int/float, optional
         amplitude of automatic activation
@@ -52,7 +61,7 @@ class Prms:
     sp_dist: int, optional
         starting point distribution (0 = constant, 1 = beta, 2 = uniform)
     sp_lim: tuple, optional
-        limiit range of distribution of starting point
+        limit range of distribution of starting point
     dr_dist: int, optional
         drift rate distribution (0 = constant, 1 = beta, 2 = uniform)
     dr_lim: tuple, optional
@@ -61,23 +70,39 @@ class Prms:
         shape parameter of drift rate
     """
 
-    amp: float = 20
-    tau: float = 30
-    drc: float = 0.5
-    bnds: float = 75
-    res_mean: float = 300
-    res_sd: float = 30
-    aa_shape: float = 2
+    # Sensory Process Parameters
+    sens_amp: float = 20
+    sens_tau: float = 30
+    sens_drc: float = 0.5
+    sens_bnds: float = 75
+    sens_aa_shape: float = 2
+    sens_res_mean: float = 300
+    sens_res_sd: float = 30
+
+    # Response Process Parameters
+    resp_amp: float = 20
+    resp_tau: float = 30
+    resp_drc: float = 0.5
+    resp_bnds: float = 75
+    resp_aa_shape: float = 2
+    resp_res_mean: float = 300
+    resp_res_sd: float = 30
+
+    # Shared Parameters
     sp_shape: float = 3
     sigma: float = 4
     res_dist: int = 1
-    t_max: int = 1000
+    t_max: int = 2000
     sp_dist: int = 0
     sp_lim: tuple = (-75, 75)
     sp_bias: float = 0.0
     dr_dist: int = 0
     dr_lim: tuple = (0.1, 0.7)
     dr_shape: float = 3
+
+    # New attributes for sensory and response starting point limits
+    sp_lim_sens: tuple = (-75, 75)
+    sp_lim_resp: tuple = (-75, 75)
 
 
 class Sim:
@@ -108,7 +133,7 @@ class Sim:
             type of delta calculation (1=direct percentile points, 2=percentile bounds (tile) average)
         full_data: bool True, optional
             run simulation to t_max to calculate activation NB. only required when plotting activation function
-            or inddividual trials
+            or individual trials
         n_trls_data: int 5, optional
             number of individual trials to store
         run_simulation: bool True, optional
@@ -149,6 +174,7 @@ class Sim:
         self.tim = None
         self.eq4 = None
         self.data = None
+        self.SR_data = None
         self.data_trials = None
         self.xt = None
         self.summary = None
@@ -163,12 +189,23 @@ class Sim:
         """Run DMC simulation."""
 
         self.tim = np.arange(1, self.prms.t_max + 1, 1)
-        self.eq4 = (
-            self.prms.amp
-            * np.exp(-self.tim / self.prms.tau)
-            * (np.exp(1) * self.tim / (self.prms.aa_shape - 1) / self.prms.tau)
-            ** (self.prms.aa_shape - 1)
+
+        self.sens_eq4 = (
+            self.prms.sens_amp
+            * np.exp(-self.tim / self.prms.sens_tau)
+            * (np.exp(1) * self.tim / (self.prms.sens_aa_shape - 1) / self.prms.sens_tau)
+            ** (self.prms.sens_aa_shape - 1)
         )
+
+        self.resp_eq4 = (
+            self.prms.resp_amp
+            * np.exp(-self.tim / self.prms.resp_tau)
+            * (np.exp(1) * self.tim / (self.prms.resp_aa_shape - 1) / self.prms.resp_tau)
+            ** (self.prms.resp_aa_shape - 1)
+        )
+
+
+
         if self.full_data:
             self._run_simulation_full()
         else:
@@ -178,32 +215,69 @@ class Sim:
         self._calc_delta_values()
         self._results_summary()
 
-    def _run_simulation(self) -> None:
 
+    def _run_simulation(self) -> None:
         self.data = []
+        self.SR_data = []
+
         for comp in (1, -1):
 
-            drc = (
+            # Sensory Process (SP)
+            sens_drc = (
                 comp
-                * self.eq4
-                * ((self.prms.aa_shape - 1) / self.tim - 1 / self.prms.tau)
+                * self.sens_eq4
+                * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
             )
-            dr, sp = self._dr(), self._sp()
+            sens_dr, sens_sp = self._sens_dr(), self._sp()
 
-            self.data.append(
-                _run_simulation(
-                    drc,
-                    sp,
-                    dr,
-                    self.prms.t_max,
-                    self.prms.sigma,
-                    self.prms.res_dist,
-                    self.prms.res_mean,
-                    self.prms.res_sd,
-                    self.prms.bnds,
-                    self.n_trls,
-                )
+            sens_data = _run_simulation(
+                sens_drc,
+                sens_sp,
+                sens_dr,
+                self.prms.t_max,
+                self.prms.sigma,
+                self.prms.res_dist,
+                self.prms.sens_res_mean,
+                self.prms.sens_res_sd,
+                self.prms.sens_bnds,
+                self.n_trls
             )
+
+
+            # Response Process (RP)
+            resp_drc = (
+                comp
+                * self.resp_eq4
+                * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
+            )
+            resp_dr, resp_sp = self._resp_dr(), self._sp()
+
+            resp_data = _run_simulation(
+                resp_drc,
+                resp_sp,
+                resp_dr,
+                self.prms.t_max,
+                self.prms.sigma,
+                self.prms.res_dist,
+                self.prms.resp_res_mean,
+                self.prms.resp_res_sd,
+                self.prms.resp_bnds,
+                self.n_trls,
+                sens_data  # Pass the sensory data for this component
+            )
+
+            # Combine RTs from sensory and response processes
+            combined_RT = sens_data[0] + resp_data[0]
+
+            # Use outcomes from the response process
+            combined_outcome = resp_data[1]
+
+            # Store the combined data
+            self.data.append(np.vstack((combined_RT, combined_outcome)))
+            self.SR_data.append((sens_data, resp_data))
+
+
+            
 
     def _run_simulation_full(self) -> None:
 
@@ -357,6 +431,7 @@ class Sim:
         """Return random vector between limits weighted by beta function."""
         return np.random.beta(shape, shape, n_trls) * (lim[1] - lim[0]) + lim[0]
 
+    '''
     def _dr(self) -> np.ndarray:
         if self.prms.dr_dist == 0:
             # constant between trial drift rate
@@ -369,6 +444,25 @@ class Sim:
             return np.random.uniform(
                 self.prms.dr_lim[0], self.prms.dr_lim[1], self.n_trls
             )
+            '''
+        
+    def _sens_dr(self) -> np.ndarray:
+        if self.prms.dr_dist == 0:
+            return np.ones(self.n_trls) * self.prms.sens_drc
+        elif self.prms.dr_dist == 1:
+            return self.rand_beta(self.prms.sens_dr_lim, self.prms.sens_dr_shape, self.n_trls)
+        elif self.prms.dr_dist == 2:
+            return np.random.uniform(self.prms.sens_dr_lim[0], self.prms.sens_dr_lim[1], self.n_trls)
+
+    def _resp_dr(self) -> np.ndarray:
+        if self.prms.dr_dist == 0:
+            return np.ones(self.n_trls) * self.prms.resp_drc
+        elif self.prms.dr_dist == 1:
+            return self.rand_beta(self.prms.resp_dr_lim, self.prms.resp_dr_shape, self.n_trls)
+        elif self.prms.dr_dist == 2:
+            return np.random.uniform(self.prms.resp_dr_lim[0], self.prms.resp_dr_lim[1], self.n_trls)
+
+
 
     def _sp(self) -> np.ndarray:
         if self.prms.sp_dist == 0:
@@ -391,12 +485,17 @@ class Sim:
                 + self.prms.sp_bias
             )
 
-
+'''
 @jit(nopython=True, parallel=True)
 def _run_simulation(
     drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls
 ):
+'''
 
+@jit(nopython=True, parallel=True)
+def _run_simulation(
+    drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None
+):
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
     if res_dist_type == 1:
         res_dist = np.random.normal(res_mean, res_sd, n_trls)
@@ -406,14 +505,21 @@ def _run_simulation(
 
     for trl in prange(n_trls):
         trl_xt = sp[trl]
+
+        # Check sensory results if provided
+        reverse_outcome = False
+        if sens_results is not None:
+            reverse_outcome = sens_results[1, trl] == 0
+
         for tp in range(0, t_max):
             trl_xt += drc[tp] + dr[trl] + (sigma * np.random.randn())
             if np.abs(trl_xt) > bnds:
                 data[0, trl] = tp + max(0, res_dist[trl])
-                data[1, trl] = trl_xt < 0.0
+                data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
                 break
 
     return data
+
 
 
 @jit(nopython=True, parallel=True)
@@ -486,7 +592,7 @@ class Ob:
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
-        outlier: tuple = (200, 1200),
+        outlier: tuple = (150, 2000),
         columns: tuple = ("Subject", "Comp", "RT", "Error"),
         comp_coding: tuple = ("comp", "incomp"),
         error_coding: tuple = (0, 1),
@@ -779,19 +885,52 @@ class Ob:
         """Select subject"""
         return self.data[self.data.Subject == subject]
 
-
 @dataclass
 class PrmsFit:
-    # start, min, max, fitted, initial grid search
-    amp: tuple = (20, 0, 40, True, False)
-    tau: tuple = (30, 5, 300, True, True)
-    drc: tuple = (0.5, 0.1, 1.0, True, False)
-    bnds: tuple = (75, 20, 150, True, False)
-    res_mean: tuple = (300, 200, 800, True, False)
-    res_sd: tuple = (30, 5, 100, True, False)
-    aa_shape: tuple = (2, 1, 3, True, False)
-    sp_shape: tuple = (3, 2, 4, True, False)
+    '''
+    amp_sens: tuple = (20, 0, 40, True, False) # Amplitude of automatic activation for sensory process
+    tau_sens: tuple = (30, 5, 800, True, True) # Time of peak automatic activation for sensory process with peak being tau ⋅ (aa_shape_sens - 1)
+    drc_sens: tuple = (0.5, 0.05, 1.0, True, False) # Drift rate of the controlled activation for sensory process
+    bnds_sens: tuple = (75, 20, 150, True, False) # Decision boundary for sensory process where response executed (boundary separation ​= ​bnds_sens ⋅ 2)
+    res_mean_sens: tuple = (300, 100, 800, True, False) # Mean of the normal distribution of the residual (R) stage for sensory process
+    res_sd_sens: tuple = (30, 5, 100, True, False) # Standard deviation of the normal distribution of the residual (R) stage for sensory process
+    aa_shape_sens: tuple = (2, 1, 5, True, False) # Shape parameter of the gamma distribution for tau for sensory process
+    
+    amp_resp: tuple = (20, 0, 40, True, False) # Amplitude of automatic activation for response process
+    tau_resp: tuple = (30, 5, 800, True, True) # Time of peak automatic activation for response process with peak being tau ⋅ (aa_shape_resp - 1)
+    drc_resp: tuple = (0.5, 0.05, 1.0, True, False) # Drift rate of the controlled activation for response process
+    bnds_resp: tuple = (75, 20, 150, True, False) # Decision boundary for response process where response executed (boundary separation ​= ​bnds_resp ⋅ 2)
+    res_mean_resp: tuple = (300, 100, 800, True, False) # Mean of the normal distribution of the residual (R) stage for response process
+    res_sd_resp: tuple = (30, 5, 100, True, False) # Standard deviation of the normal distribution of the residual (R) stage for response process
+    aa_shape_resp: tuple = (2, 1, 5, True, False) # Shape parameter of the gamma distribution for tau for response process
+    
+    sp_shape: tuple = (3, 2, 5, True, False) # Shape parameter of the beta distribution for starting point variability
+    sigma: tuple = (4, 1, 10, False, False) # Scaling parameter of the drift diffusion process
+    '''
+
+    sens_amp: tuple = (20, 0, 40, True, False)
+    sens_tau: tuple = (30, 5, 800, True, True)
+    sens_drc: tuple = (0.5, 0.05, 1.0, True, False)
+    sens_bnds: tuple = (75, 20, 150, True, False)
+    sens_aa_shape: tuple = (2, 1, 5, True, False)
+    sens_res_mean: tuple = (300, 100, 800, True, False)
+    sens_res_sd: tuple = (30, 5, 100, True, False)
+
+    # Response Process Parameters
+    resp_amp: tuple = (20, 0, 40, True, False)
+    resp_tau: tuple = (30, 5, 800, True, True)
+    resp_drc: tuple = (0.5, 0.05, 1.0, True, False)
+    resp_bnds: tuple = (75, 20, 150, True, False)
+    resp_aa_shape: tuple = (2, 1, 5, True, False)
+    resp_res_mean: tuple = (300, 100, 800, True, False)
+    resp_res_sd: tuple = (30, 5, 100, True, False)
+
+    # Shared Parameters
+    sp_shape: tuple = (3, 2, 5, True, False)
     sigma: tuple = (4, 1, 10, False, False)
+
+
+
 
     def set_start_values(self, **kwargs) -> None:
         self._set_values(0, **kwargs)
@@ -819,10 +958,24 @@ class PrmsFit:
             for k, v in kwargs.items()
         ]
 
+    
+    def set_random_start_values(self, seed_value=None) -> None:
+        if seed_value is not None:
+            seed(seed_value)
+        random_values = {
+            k: uniform(v[1], v[2])
+            for k, v in asdict(self).items() if v[-2] and v[-3]
+        }
+        self.set_start_values(**random_values)
+
+
     def dmc_prms(self, sp_dist: int = 1) -> Prms:
+        prms_dict = self.dict(0)
         return Prms(
-            **self.dict(0), sp_dist=sp_dist, sp_lim=(-self.bnds[0], self.bnds[1])
+            **prms_dict, sp_dist=sp_dist, sp_lim_sens=(-self.sens_bnds[0], self.sens_bnds[1]), sp_lim_resp=(-self.resp_bnds[0], self.resp_bnds[1])
         )
+
+
 
     def array(self, idx: int = 0) -> list:
         return [x[idx] for x in asdict(self).values() if x[-2]]
@@ -839,8 +992,9 @@ class Fit:
         self,
         res_ob: Ob,
         n_trls: int = 100_000,
-        sim_prms: Prms = Prms(sp_dist=1),
-        start_vals: PrmsFit = PrmsFit(),
+        sim_prms: Prms = Prms(sp_dist=1), # simulation parameters of type 'Prms'
+        #sim_prms: Prms = Prms(), # simulation parameters of type 'Prms'
+        start_vals: PrmsFit = PrmsFit(), # Starting values for parameters, instance of PrmsFit
         search_grid: bool = True,
         n_grid: int = 10,
         n_delta: int = 19,
@@ -857,7 +1011,7 @@ class Fit:
         self.start_vals = start_vals
         self.search_grid = search_grid
         self.n_grid = n_grid
-        self.dmc_prms = start_vals.dmc_prms()
+        self.dmc_prms = start_vals.dmc_prms() # Derived parameters for the DMC model.
         self.n_delta = n_delta
         self.p_delta = p_delta
         self.t_delta = t_delta
@@ -865,8 +1019,14 @@ class Fit:
         self.cost_function = self._assign_cost_function(cost_function)
         self.cost_value = np.Inf
         self.plot: None
+        # to track the best parameter
+        self.best_prms_out = None # Best parameters found during fitting.
+        self.best_cost = np.Inf #  Best cost value found during fitting.
 
     def _assign_cost_function(self, cost_function: str):
+        '''
+        Assigns the cost function based on the input string.
+        '''
         if cost_function == "RMSE":
             return self.calculate_cost_value_rmse
         elif cost_function == "SPE":
@@ -875,7 +1035,9 @@ class Fit:
             raise Exception("cost function not implemented!")
 
     def _search_grid(self) -> None:
-
+        '''
+        Performs a grid search over parameter space, finding the best combination that minimizes the cost function.
+        '''
         grid_space = {}
         for p in asdict(self.start_vals).items():
             if p[1][-1]:
@@ -899,6 +1061,9 @@ class Fit:
         self.dmc_prms = self.start_vals.dmc_prms()
 
     def fit_data(self, method: str = "nelder-mead", **kwargs) -> None:
+        '''
+        Handles the fitting process, either using Nelder-Mead or differential evolution, depending on the input.
+        '''
 
         self.res_th = Sim(copy.deepcopy(self.sim_prms))
 
@@ -919,6 +1084,8 @@ class Fit:
             bounds=self.start_vals.bounds(),
             options=kwargs,
         )
+        self.cost_value = self.best_cost
+        self.res_th = Sim(copy.deepcopy(self.best_prms_out))
 
     def _fit_data_differential_evolution(self, **kwargs) -> None:
         kwargs.setdefault("maxiter", 10)
@@ -928,23 +1095,46 @@ class Fit:
             self.start_vals.bounds(),
             **kwargs,
         )
+        #self.res_th.prms = self.best_prms_out  # Set the best parameters
+        self.cost_value = self.best_cost
+        self.res_th = Sim(copy.deepcopy(self.best_prms_out))
+
 
     def print_summary(self) -> None:
         """Print summary of DmcFit."""
         print(
-            f"amp:{self.res_th.prms.amp:4.1f}",
-            f"tau:{self.res_th.prms.tau:4.1f}",
-            f"drc:{self.res_th.prms.drc:4.2f}",
-            f"bnds:{self.res_th.prms.bnds:4.1f}",
-            f"res_mean:{self.res_th.prms.res_mean:4.0f}",
-            f"res_sd:{self.res_th.prms.res_sd:4.1f}",
-            f"aa_shape:{self.res_th.prms.aa_shape:4.1f}",
+            # Sensory Process Parameters
+            f"sens_amp:{self.res_th.prms.sens_amp:4.1f}",
+            f"sens_tau:{self.res_th.prms.sens_tau:4.1f}",
+            f"sens_drc:{self.res_th.prms.sens_drc:4.2f}",
+            f"sens_bnds:{self.res_th.prms.sens_bnds:4.1f}",
+            f"sens_aa_shape:{self.res_th.prms.sens_aa_shape:4.1f}",
+            f"sens_res_mean:{self.res_th.prms.sens_res_mean:4.0f}",
+            f"sens_res_sd:{self.res_th.prms.sens_res_sd:4.1f}",
+            # Response Process Parameters
+            f"resp_amp:{self.res_th.prms.resp_amp:4.1f}",
+            f"resp_tau:{self.res_th.prms.resp_tau:4.1f}",
+            f"resp_drc:{self.res_th.prms.resp_drc:4.2f}",
+            f"resp_bnds:{self.res_th.prms.resp_bnds:4.1f}",
+            f"resp_aa_shape:{self.res_th.prms.resp_aa_shape:4.1f}",
+            f"resp_res_mean:{self.res_th.prms.resp_res_mean:4.0f}",
+            f"resp_res_sd:{self.res_th.prms.resp_res_sd:4.1f}",
+            # Shared Parameters
             f"sp_shape:{self.res_th.prms.sp_shape:4.1f}",
-            f"sp_shape:{self.res_th.prms.sp_bias:4.1f}",
-            f"sp_shape:{self.res_th.prms.dr_shape:4.1f}",
-            f"sp_shape:{self.res_th.prms.sigma:4.1f}",
+            f"sigma:{self.res_th.prms.sigma:4.1f}",
+            f"sp_bias:{self.res_th.prms.sp_bias:4.1f}",
+            f"dr_shape:{self.res_th.prms.dr_shape:4.1f}",
+            # Additional information
             f"| cost={self.cost_value:.2f}",
         )
+
+
+    def return_result_prms(self) -> Prms:
+        '''
+        Returns parameters after fitting.
+        '''
+        return self.res_th.prms
+
 
     def table_summary(self) -> pd.DataFrame:
         """Table summary."""
@@ -979,10 +1169,18 @@ class Fit:
         )
 
     def _function_to_minimise(self, x: list) -> float:
-
+        '''
+        Function to be minimized by the optimization algorithm. Updates the parameters and computes the cost.
+        '''
         self._update_parameters(x)
         self.res_th.run_simulation()
         self.cost_value = self.cost_function(self.res_th, self.res_ob)
+
+        # Check if the current cost value is less than the best cost
+        if self.cost_value < self.best_cost:
+            self.best_cost = self.cost_value
+            self.best_prms_out = copy.deepcopy(self.res_th.prms)  # Make sure to create a deep copy
+
         self.print_summary()
 
         return self.cost_value
@@ -993,7 +1191,8 @@ class Fit:
             if getattr(self.start_vals, k)[-2]:
                 setattr(self.res_th.prms, k, x[idx])
                 idx += 1
-        self.res_th.prms.sp_lim = (-self.res_th.prms.bnds, self.res_th.prms.bnds)
+        self.res_th.prms.sp_lim_sens = (-self.res_th.prms.sens_bnds, self.res_th.prms.sens_bnds)
+        self.res_th.prms.sp_lim_resp = (-self.res_th.prms.resp_bnds, self.res_th.prms.resp_bnds)
 
     @staticmethod
     def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
@@ -1200,7 +1399,7 @@ class Plot:
         plt.show(block=False)
 
     def _summary1_res_ob(self, **kwargs):
-        """Plot summaty observed data."""
+        """Plot summary observed data."""
 
         # upper left panel (rt correct)
         plt.subplot2grid((3, 2), (0, 0))
@@ -1606,6 +1805,11 @@ class Plot:
 
 
 class PlotFit:
+
+    '''
+    Example: fit_plot = pydmc.PlotFit(fit).summary()
+    '''
+
     def __init__(self, res: Fit):
 
         assert isinstance(res, Fit), "res must be of type 'Fit'"
