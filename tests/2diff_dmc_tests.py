@@ -28,7 +28,7 @@ importlib.reload(pydmc)
 # %% Sample Data
 # Creating sample data
 
-
+'''
 # Creating sample data
 np.random.seed(42)
 data = {
@@ -42,14 +42,14 @@ data = {
 df_observed = pd.DataFrame(data)
 
 print(df_observed)
-
-
-# %%
-#Data = pydmc.flanker_data()
-#Data.head()
+'''
 
 # %%
-res_ob = Ob(df_observed, n_caf=9)
+Data = pydmc.flanker_data()
+Data.head()
+
+# %%
+res_ob = Ob(Data, n_caf=9)
 
 # %%
 prmsfit = PrmsFit()
@@ -77,6 +77,7 @@ PlotFit(fit_diff).summary()
 # %%
 #prms_res = fit_diff.return_result_prms()
 #prms_res
+fit_diff.res_th.data
 
 
 # %%
@@ -118,24 +119,7 @@ fit_diff_adv.fit_data(maxiter=200)
 
 # %%
 fit_diff_adv.table_summary()
-
-# %%
-'''
-Paper Values (flanker)
-
-prms_instance = Prms(
-    amp=19.42,
-    tau=84.22,
-    drc=0.6,
-    bnds=56.47,
-    res_mean=325.14,
-    res_sd=28.28,
-    aa_shape=2.24,
-    sp_shape=2.8,
-    sigma=4
-)
-
-'''
+# TODO
 
 
 # %%
@@ -176,7 +160,7 @@ sns.histplot(data=df2,
              x='RT',
              hue='Response')
 # %%
-sns.histplot(data=Data,
+sns.histplot(data=data,
              x='RT',
              hue='Error')
 # %%

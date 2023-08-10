@@ -174,6 +174,7 @@ class Sim:
         self.tim = None
         self.eq4 = None
         self.data = None
+        self.SR_data = None
         self.data_trials = None
         self.xt = None
         self.summary = None
@@ -216,8 +217,9 @@ class Sim:
 
 
     def _run_simulation(self) -> None:
-
         self.data = []
+        self.SR_data = []
+
         for comp in (1, -1):
 
             # Sensory Process (SP)
@@ -238,14 +240,8 @@ class Sim:
                 self.prms.sens_res_mean,
                 self.prms.sens_res_sd,
                 self.prms.sens_bnds,
-                self.n_trls,
+                self.n_trls
             )
-
-            # Determine the boundary configuration for Response Process (RP)
-            if sens_data['result'] < 0:
-                resp_bnds = -self.prms.resp_bnds
-            else:
-                resp_bnds = self.prms.resp_bnds
 
 
             # Response Process (RP)
@@ -265,11 +261,21 @@ class Sim:
                 self.prms.res_dist,
                 self.prms.resp_res_mean,
                 self.prms.resp_res_sd,
-                resp_bnds,
+                self.prms.resp_bnds,
                 self.n_trls,
+                sens_data  # Pass the sensory data for this component
             )
 
-            self.data.append((sens_data, resp_data))
+            # Combine RTs from sensory and response processes
+            combined_RT = sens_data[0] + resp_data[0]
+
+            # Use outcomes from the response process
+            combined_outcome = resp_data[1]
+
+            # Store the combined data
+            self.data.append(np.vstack((combined_RT, combined_outcome)))
+            self.SR_data.append((sens_data, resp_data))
+
 
             
 
@@ -441,19 +447,19 @@ class Sim:
             '''
         
     def _sens_dr(self) -> np.ndarray:
-        if self.prms.sens_dr_dist == 0:
+        if self.prms.dr_dist == 0:
             return np.ones(self.n_trls) * self.prms.sens_drc
-        elif self.prms.sens_dr_dist == 1:
+        elif self.prms.dr_dist == 1:
             return self.rand_beta(self.prms.sens_dr_lim, self.prms.sens_dr_shape, self.n_trls)
-        elif self.prms.sens_dr_dist == 2:
+        elif self.prms.dr_dist == 2:
             return np.random.uniform(self.prms.sens_dr_lim[0], self.prms.sens_dr_lim[1], self.n_trls)
 
     def _resp_dr(self) -> np.ndarray:
-        if self.prms.resp_dr_dist == 0:
+        if self.prms.dr_dist == 0:
             return np.ones(self.n_trls) * self.prms.resp_drc
-        elif self.prms.resp_dr_dist == 1:
+        elif self.prms.dr_dist == 1:
             return self.rand_beta(self.prms.resp_dr_lim, self.prms.resp_dr_shape, self.n_trls)
-        elif self.prms.resp_dr_dist == 2:
+        elif self.prms.dr_dist == 2:
             return np.random.uniform(self.prms.resp_dr_lim[0], self.prms.resp_dr_lim[1], self.n_trls)
 
 
@@ -479,12 +485,17 @@ class Sim:
                 + self.prms.sp_bias
             )
 
-
+'''
 @jit(nopython=True, parallel=True)
 def _run_simulation(
     drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls
 ):
+'''
 
+@jit(nopython=True, parallel=True)
+def _run_simulation(
+    drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None
+):
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
     if res_dist_type == 1:
         res_dist = np.random.normal(res_mean, res_sd, n_trls)
@@ -494,14 +505,21 @@ def _run_simulation(
 
     for trl in prange(n_trls):
         trl_xt = sp[trl]
+
+        # Check sensory results if provided
+        reverse_outcome = False
+        if sens_results is not None:
+            reverse_outcome = sens_results[1, trl] == 0
+
         for tp in range(0, t_max):
             trl_xt += drc[tp] + dr[trl] + (sigma * np.random.randn())
             if np.abs(trl_xt) > bnds:
                 data[0, trl] = tp + max(0, res_dist[trl])
-                data[1, trl] = trl_xt < 0.0
+                data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
                 break
 
     return data
+
 
 
 @jit(nopython=True, parallel=True)
@@ -1085,19 +1103,31 @@ class Fit:
     def print_summary(self) -> None:
         """Print summary of DmcFit."""
         print(
-            f"amp:{self.res_th.prms.amp:4.1f}",
-            f"tau:{self.res_th.prms.tau:4.1f}",
-            f"drc:{self.res_th.prms.drc:4.2f}",
-            f"bnds:{self.res_th.prms.bnds:4.1f}",
-            f"res_mean:{self.res_th.prms.res_mean:4.0f}",
-            f"res_sd:{self.res_th.prms.res_sd:4.1f}",
-            f"aa_shape:{self.res_th.prms.aa_shape:4.1f}",
+            # Sensory Process Parameters
+            f"sens_amp:{self.res_th.prms.sens_amp:4.1f}",
+            f"sens_tau:{self.res_th.prms.sens_tau:4.1f}",
+            f"sens_drc:{self.res_th.prms.sens_drc:4.2f}",
+            f"sens_bnds:{self.res_th.prms.sens_bnds:4.1f}",
+            f"sens_aa_shape:{self.res_th.prms.sens_aa_shape:4.1f}",
+            f"sens_res_mean:{self.res_th.prms.sens_res_mean:4.0f}",
+            f"sens_res_sd:{self.res_th.prms.sens_res_sd:4.1f}",
+            # Response Process Parameters
+            f"resp_amp:{self.res_th.prms.resp_amp:4.1f}",
+            f"resp_tau:{self.res_th.prms.resp_tau:4.1f}",
+            f"resp_drc:{self.res_th.prms.resp_drc:4.2f}",
+            f"resp_bnds:{self.res_th.prms.resp_bnds:4.1f}",
+            f"resp_aa_shape:{self.res_th.prms.resp_aa_shape:4.1f}",
+            f"resp_res_mean:{self.res_th.prms.resp_res_mean:4.0f}",
+            f"resp_res_sd:{self.res_th.prms.resp_res_sd:4.1f}",
+            # Shared Parameters
             f"sp_shape:{self.res_th.prms.sp_shape:4.1f}",
+            f"sigma:{self.res_th.prms.sigma:4.1f}",
             f"sp_bias:{self.res_th.prms.sp_bias:4.1f}",
             f"dr_shape:{self.res_th.prms.dr_shape:4.1f}",
-            f"sigma:{self.res_th.prms.sigma:4.1f}",
+            # Additional information
             f"| cost={self.cost_value:.2f}",
         )
+
 
     def return_result_prms(self) -> Prms:
         '''
@@ -1161,8 +1191,8 @@ class Fit:
             if getattr(self.start_vals, k)[-2]:
                 setattr(self.res_th.prms, k, x[idx])
                 idx += 1
-        self.res_th.prms.sp_lim_sens = (-self.res_th.prms.bnds_sens, self.res_th.prms.bnds_sens)
-        self.res_th.prms.sp_lim_resp = (-self.res_th.prms.bnds_resp, self.res_th.prms.bnds_resp)
+        self.res_th.prms.sp_lim_sens = (-self.res_th.prms.sens_bnds, self.res_th.prms.sens_bnds)
+        self.res_th.prms.sp_lim_resp = (-self.res_th.prms.resp_bnds, self.res_th.prms.resp_bnds)
 
     @staticmethod
     def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
