@@ -27,29 +27,18 @@ importlib.reload(pydmc)
 
 # %% Sample Data
 # Creating sample data
+data = generate_test_data(1000)
 
-'''
-# Creating sample data
-np.random.seed(42)
-data = {
-    "Subject": np.tile(np.arange(1, 51), 2),
-    "Comp": ["comp" if i % 2 == 0 else "incomp" for i in range(100)],
-    "RT": np.random.randint(300, 500, 100),
-    "Error": np.random.choice([0, 1], 100),
-}
-
-# Creating a Pandas DataFrame
-df_observed = pd.DataFrame(data)
-
-print(df_observed)
-'''
 
 # %%
-Data = pydmc.flanker_data()
-Data.head()
+#Data = pydmc.flanker_data()
+#Data.head()
 
 # %%
-res_ob = Ob(Data, n_caf=9)
+res_ob = Ob(data, n_caf=9)
+
+# %%
+#res_ob.delta
 
 # %%
 prmsfit = PrmsFit()
@@ -113,13 +102,13 @@ fit_diff_adv = Fit(res_ob, start_vals=prmsfit_adv, search_grid=False, n_caf=9)
 
 # %%
 #fit_diff.fit_data('differential_evolution', maxiter=10)
-fit_diff_adv.fit_data(maxiter=200)
+fit_diff_adv.fit_data(maxiter=10)
 
 
 
 # %%
 fit_diff_adv.table_summary()
-# TODO
+# 
 
 
 # %%
@@ -128,7 +117,7 @@ fit_diff_adv.table_summary()
 
 
 # %%
-PlotFit(fit_diff_adv).summary()
+PlotFit(fit_diff_adv).summary() # TODO
 
 
 # %%
@@ -145,12 +134,12 @@ sim.plot.summary()
 
 # %%
 print(f'RMSE: {Fit.calculate_cost_value_rmse(sim, res_ob)}')
-print(f'SPE (%): {Fit.calculate_cost_value_spe(sim, res_ob)*100:4.2f}')
+print(f'SPE (%): {Fit.calculate_cost_value_spe(sim, res_ob)*100:4.2f}') # TODO
 
 
 # %%
-df1 = pd.DataFrame(data=sim.data[0].T, columns=['RT', 'Response'])
-df2 = pd.DataFrame(data=sim.data[1].T, columns=['RT', 'Response'])
+df1 = pd.DataFrame(data=sim.data[0].T, columns=['RT', 'Response']) # TODO
+df2 = pd.DataFrame(data=sim.data[1].T, columns=['RT', 'Response']) # TODO
 # %%
 sns.histplot(data=df1,
              x='RT',

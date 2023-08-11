@@ -182,6 +182,31 @@ class Sim:
         self.delta = None
         self.plot: Plot = Plot(self)
 
+        # Coding of Conditions of B010 (condition, sens_comp, resp_comp)
+        self.conditions = [
+            ("exHULU", 1, 1),
+            ("exHCLU", 1, 1),
+            ("exHULC", -1, 1),
+            ("exHCLC", -1, 1),
+            ("anHULU", 1, 1),
+            ("anHCLU", 1, -1),
+            ("anHULC", -1, -1),
+            ("anHCLC", -1, 1),
+        ]
+
+        
+        self.compatibility_mapping  = {
+            "exHULU": "comp",
+            "exHCLU": "incomp",
+            "exHULC": "incomp",
+            "exHCLC": "incomp",
+            "anHULU": "comp",
+            "anHCLU": "incomp",
+            "anHULC": "incomp",
+            "anHCLC": "incomp"
+        }
+
+
         if run_simulation:
             self.run_simulation()
 
@@ -217,14 +242,14 @@ class Sim:
 
 
     def _run_simulation(self) -> None:
-        self.data = []
-        self.SR_data = []
+        self.data = {}
+        self.SR_data = {}
 
-        for comp in (1, -1):
+        for condition_name, sens_comp, resp_comp in self.conditions:
 
             # Sensory Process (SP)
             sens_drc = (
-                comp
+                sens_comp
                 * self.sens_eq4
                 * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
             )
@@ -243,10 +268,9 @@ class Sim:
                 self.n_trls
             )
 
-
             # Response Process (RP)
             resp_drc = (
-                comp
+                resp_comp
                 * self.resp_eq4
                 * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
             )
@@ -263,18 +287,16 @@ class Sim:
                 self.prms.resp_res_sd,
                 self.prms.resp_bnds,
                 self.n_trls,
-                sens_data  # Pass the sensory data for this component
+                sens_data
             )
 
-            # Combine RTs from sensory and response processes
+           # Combine RTs from sensory and response processes
             combined_RT = sens_data[0] + resp_data[0]
-
-            # Use outcomes from the response process
             combined_outcome = resp_data[1]
 
             # Store the combined data
-            self.data.append(np.vstack((combined_RT, combined_outcome)))
-            self.SR_data.append((sens_data, resp_data))
+            self.data[condition_name] = (combined_RT, combined_outcome)
+            self.SR_data[condition_name] = (sens_data, resp_data)
 
 
             
@@ -311,26 +333,30 @@ class Sim:
             self.data_trials.append(trials)
             self.data.append(data)
 
+
     def _results_summary(self) -> None:
         """Create results summary table."""
 
-        summary = []
-        for comp in (0, 1):
-            summary.append(
+        summary_data = {"comp": [], "incomp": []}
+
+        for condition, comp_label in self.compatibility_mapping.items():
+            data = self.data[condition]
+            summary_data[comp_label].append(
                 [
-                    np.round(np.mean(self.data[comp][0][self.data[comp][1] == 0])),
-                    np.round(np.std(self.data[comp][0][self.data[comp][1] == 0])),
-                    np.round(np.sum(self.data[comp][1] / self.n_trls) * 100, 1),
-                    np.round(np.mean(self.data[comp][0][self.data[comp][1] == 1])),
-                    np.round(np.std(self.data[comp][0][self.data[comp][1] == 1])),
+                    np.round(np.mean(data[0][data[1] == 0])),
+                    np.round(np.std(data[0][data[1] == 0])),
+                    np.round(np.sum(data[1] / self.n_trls) * 100, 1),
+                    np.round(np.mean(data[0][data[1] == 1])),
+                    np.round(np.std(data[0][data[1] == 1])),
                 ]
             )
 
         self.summary = pd.DataFrame(
-            summary,
-            index=["comp", "incomp"],
+            summary_data,
+            index=list(self.compatibility_mapping.keys()),
             columns=["rt_cor", "sd_cor", "per_err", "rt_err", "sd_rt_err"],
         )
+
 
     def _calc_caf_values(self) -> None:
         """Calculate conditional accuracy functions."""
@@ -343,86 +369,101 @@ class Sim:
             x = x.assign(bin=cafbin)
             return pd.DataFrame((1 - x.groupby(["bin"])["Error"].mean())[:-1])
 
-        # create temp pandas dataframe
-        dfc = pd.DataFrame(self.data[0].T, columns=["RT", "Error"]).assign(Comp="comp")
-        dfi = pd.DataFrame(self.data[1].T, columns=["RT", "Error"]).assign(
-            Comp="incomp"
-        )
+        self.caf = {}
 
-        self.caf = (
-            pd.concat([dfc, dfi])
-            .groupby(["Comp"])
-            .apply(caffun, self.n_caf)
-            .reset_index()
-            .pivot(index="bin", columns="Comp", values="Error")
-            .reset_index()
-            .rename_axis(None, axis=1)
-            .assign(effect=lambda x: (x["comp"] - x["incomp"]) * 100)
-        )
+        # Iterate through each condition name and corresponding data
+        for condition_name, (RTs, Errors) in self.data.items():
+            # Create a DataFrame for the current condition
+            df_condition = pd.DataFrame({"RT": RTs, "Error": Errors})
+
+            # Apply the caffun function to calculate the CAF values for the current condition
+            caf_condition = caffun(df_condition, self.n_caf)
+
+            # Append the result to the caf dictionary using the condition name as the key
+            self.caf[condition_name] = caf_condition
+
+        
 
     def _calc_delta_values(self) -> None:
         """Calculate compatibility effect + delta values for correct trials."""
 
-        if self.t_delta == 1:
+        self.delta = []
 
-            if len(self.p_delta) != 0:
-                percentiles = self.p_delta
-            else:
-                percentiles = np.linspace(0, 1, self.n_delta + 2)[1:-1]
+        # Define the compatible conditions for "ex" and "an"
+        comp_conditions = ["exHULU", "anHULU"]
 
-            # alphap, betap values to match R quantile 5 (see scipy.stats.mstats.mquantiles)
-            mean_bins = np.array(
-                [
-                    mquantiles(
-                        self.data[comp][0][self.data[comp][1] == 0],
-                        percentiles,
-                        alphap=0.5,
-                        betap=0.5,
+        for comp_condition_name in comp_conditions:
+            # Retrieve the data for the compatible condition
+            comp_data = self.data[comp_condition_name][0][self.data[comp_condition_name][1] == 0]
+
+            # Compare the compatible condition with each incompatible condition within the same category
+            for condition_name, condition_data in self.data.items():
+                if condition_name != comp_condition_name and ("ex" in condition_name) == ("ex" in comp_condition_name):
+                    data = condition_data[0][condition_data[1] == 0]
+
+                    # Concatenate dataframes for compatible and incompatible conditions
+                    combined_data = [comp_data, data]
+
+                    if self.t_delta == 1:
+                        if len(self.p_delta) != 0:
+                            percentiles = self.p_delta
+                        else:
+                            percentiles = np.linspace(0, 1, self.n_delta + 2)[1:-1]
+
+                        mean_bins = np.array(
+                            [
+                                mquantiles(
+                                    combined_data[comp],
+                                    percentiles,
+                                    alphap=0.5,
+                                    betap=0.5,
+                                )
+                                for comp in range(2)
+                            ]
+                        )
+
+                    elif self.t_delta == 2:
+                        if len(self.p_delta) != 0:
+                            percentiles = (0,) + self.p_delta + (1,)
+                        else:
+                            percentiles = np.linspace(0, 1, self.n_delta + 1)
+
+                        mean_bins = np.zeros((2, len(percentiles) - 1))
+                        for comp in range(2):
+                            bin_values = mquantiles(
+                                combined_data[comp],
+                                percentiles,
+                                alphap=0.5,
+                                betap=0.5,
+                            )
+
+                            tile = np.digitize(combined_data[comp], bin_values)
+                            mean_bins[comp, :] = np.array(
+                                [
+                                    combined_data[comp][tile == i].mean()
+                                    for i in range(1, len(bin_values))
+                                ]
+                            )
+
+                    mean_bin = mean_bins.mean(axis=0)
+                    mean_effect = mean_bins[1, :] - mean_bins[0, :]
+
+                    data = np.array(
+                        [
+                            range(1, len(mean_bin) + 1),
+                            mean_bins[0, :],
+                            mean_bins[1, :],
+                            mean_bin,
+                            mean_effect,
+                        ]
+                    ).T
+
+                    delta_condition = pd.DataFrame(
+                        data, columns=["bin", "mean_comp", "mean_incomp", "mean_bin", "mean_effect"]
                     )
-                    for comp in (0, 1)
-                ]
-            )
 
-        elif self.t_delta == 2:
+                    self.delta.append((f"{condition_name}", delta_condition))
 
-            if len(self.p_delta) != 0:
-                percentiles = (0,) + self.p_delta + (1,)
-            else:
-                percentiles = np.linspace(0, 1, self.n_delta + 1)
-
-            mean_bins = np.zeros((2, len(percentiles) - 1))
-            for comp in (0, 1):
-                bin_values = mquantiles(
-                    self.data[comp][0],
-                    percentiles,
-                    alphap=0.5,
-                    betap=0.5,
-                )
-
-                tile = np.digitize(self.data[comp][0], bin_values)
-                mean_bins[comp, :] = np.array(
-                    [
-                        self.data[comp][0][tile == i].mean()
-                        for i in range(1, len(bin_values))
-                    ]
-                )
-
-        mean_bin = mean_bins.mean(axis=0)
-        mean_effect = mean_bins[1, :] - mean_bins[0, :]
-
-        data = np.array(
-            [
-                range(1, len(mean_bin) + 1),
-                mean_bins[0, :],
-                mean_bins[1, :],
-                mean_bin,
-                mean_effect,
-            ]
-        ).T
-
-        self.delta = pd.DataFrame(
-            data, columns=["bin", "mean_comp", "mean_incomp", "mean_bin", "mean_effect"]
-        )
 
     @staticmethod
     def rand_beta(
@@ -585,6 +626,18 @@ def simon_data() -> pd.DataFrame:
 
 
 class Ob:
+
+    CONDITION_MAPPING = {
+        "exHULU": "comp",
+        "exHCLU": "incomp",
+        "exHULC": "incomp",
+        "exHCLC": "incomp",
+        "anHULU": "comp",
+        "anHCLU": "incomp",
+        "anHULC": "incomp",
+        "anHCLC": "incomp",
+    }
+
     def __init__(
         self,
         data: Union[str, pd.DataFrame],
@@ -593,7 +646,7 @@ class Ob:
         p_delta: tuple = (),
         t_delta: int = 1,
         outlier: tuple = (150, 2000),
-        columns: tuple = ("Subject", "Comp", "RT", "Error"),
+        columns: tuple = ("Subject", "condition", "sens_comp", "resp_comp", "RT", "Error"),
         comp_coding: tuple = ("comp", "incomp"),
         error_coding: tuple = (0, 1),
         sep: str = "\t",
@@ -663,16 +716,28 @@ class Ob:
             self.data = self.data[list(self.columns)]
         except KeyError:
             raise Exception("requested columns not in data!")
-        if len(self.data.columns) != 4:
-            raise Exception("data does not contain required/requested coluumns!")
-        if not any(self.data.columns.values == ("Subject", "Comp", "RT", "Error")):
-            self.data.columns = ("Subject", "Comp", "RT", "Error")
+        if len(self.data.columns) != 6:
+            raise Exception("data does not contain required/requested columns!")
+        if not all(self.data.columns.values == ("Subject", "condition", "sens_comp", "resp_comp", "RT", "Error")):
+            self.data.columns = ("Subject", "condition", "sens_comp", "resp_comp", "RT", "Error")
+
 
     def _comp_coding(self) -> None:
-        if self.comp_coding != ("comp", "incomp"):
-            self.data["Comp"] = np.where(
-                self.data["Comp"] == self.comp_coding[0], "comp", "incomp"
-            )
+        # Define a mapping for conditions and their compatibility
+        conditions_map = {
+            "exHULU": "comp",
+            "exHCLU": "incomp",
+            "exHULC": "incomp",
+            "exHCLC": "incomp",
+            "anHULU": "comp",
+            "anHCLU": "incomp",
+            "anHULC": "incomp",
+            "anHCLC": "incomp"
+        }
+
+        # Apply the compatibility coding based on the condition
+        self.data["Comp"] = self.data["condition"].map(conditions_map)
+
 
     def _error_coding(self) -> None:
         if self.error_coding != (0, 1):
@@ -709,8 +774,9 @@ class Ob:
             return dat_agg
 
         self.summary_subject = (
-            self.data.groupby(["Subject", "Comp"]).apply(aggfun).reset_index()
+            self.data.groupby(["Subject", "condition"]).apply(aggfun).reset_index()
         ).drop("level_2", axis=1)
+
 
     def _aggregate_subjects(self) -> None:
         def aggfun(x):
@@ -764,15 +830,15 @@ class Ob:
             return dat_agg
 
         self.summary = (
-            self.summary_subject.groupby(["Comp"]).apply(aggfun).reset_index()
+            self.summary_subject.groupby(["condition"]).apply(aggfun).reset_index()
         ).drop("level_1", axis=1)
+
+
 
     def _calc_caf_values(self) -> None:
         """Calculate conditional accuracy functions."""
 
-        def caffun(x, n: int) -> pd.DataFrame:
-            # remove outliers and bin data
-            x = x[x.outlier == 0].reset_index()
+        def caffun(x, n):
             cafbin = np.digitize(
                 x.loc[:, "RT"],
                 np.percentile(x.loc[:, "RT"], np.linspace(0, 100, n + 1)),
@@ -780,24 +846,35 @@ class Ob:
             x = x.assign(bin=cafbin)
             return pd.DataFrame((1 - x.groupby(["bin"])["Error"].mean())[:-1])
 
-        self.caf_subject = (
-            self.data.groupby(["Subject", "Comp"])
-            .apply(caffun, self.n_caf)
-            .reset_index()
-            .pivot(index=("Subject", "bin"), columns="Comp", values="Error")
-            .reset_index()
-            .rename_axis(None, axis=1)
-            .assign(effect=lambda x: (x["comp"] - x["incomp"]) * 100)
-        )
+        self.caf = {}
 
-        self.caf = (
-            self.caf_subject.groupby("bin").mean().reset_index().drop("Subject", axis=1)
-        )
+        
+        # Iterate through each unique condition name
+        for condition_name in self.data['condition'].unique():
+            # Filter data for the current condition
+            condition_data = self.data[self.data['condition'] == condition_name]
+
+            # Extract RTs and Errors
+            RTs = condition_data['RT'].values
+            Errors = condition_data['Error'].values
+
+            # Create a DataFrame for the current condition
+            df_condition = pd.DataFrame({"RT": RTs, "Error": Errors})
+
+            # Apply the caffun function to calculate the CAF values for the current condition
+            caf_condition = caffun(df_condition, self.n_caf)
+
+            # Append the result to the caf dictionary using the condition name as the key
+            self.caf[condition_name] = caf_condition
+
 
     def _calc_delta_values(self) -> None:
         """Calculate compatibility effect + delta values for correct trials."""
 
-        # noinspection PyUnboundLocalVariable
+        # Define the compatible conditions for "ex" and "an"
+        comp_conditions = ["exHULU", "anHULU"]
+
+        # Define the delta function
         def deltafun(x: pd.DataFrame) -> pd.DataFrame:
             # filter trials
             x = x[(x.outlier == 0) & (x.Error == 0)].reset_index()
@@ -860,26 +937,48 @@ class Ob:
                 columns=["bin", "mean_comp", "mean_incomp", "mean_bin", "mean_effect"],
             )
 
-        self.delta_subject = (
-            self.data.groupby(["Subject"]).apply(deltafun).reset_index()
-        ).drop("level_1", axis=1)
+        # Initialize the delta list
+        self.delta = []
 
-        def aggfun(x: pd.DataFrame) -> pd.DataFrame:
-            return pd.DataFrame(
-                [
-                    [
-                        np.nanmean(x["mean_comp"]),
-                        np.nanmean(x["mean_incomp"]),
-                        np.nanmean(x["mean_bin"]),
-                        np.nanmean(x["mean_effect"]),
-                    ]
-                ],
-                columns=["mean_comp", "mean_incomp", "mean_bin", "mean_effect"],
-            )
+        # Iterate through the compatible conditions
+        for comp_condition_name in comp_conditions:
+            # Retrieve the data for the compatible condition
+            comp_data = self.data[self.data['condition'] == comp_condition_name]
 
-        self.delta = (
-            self.delta_subject.groupby(["bin"]).apply(aggfun).reset_index()
-        ).drop("level_1", axis=1)
+            # Compare the compatible condition with each incompatible condition within the same category
+            for condition_name in self.data['condition'].unique():
+                if condition_name != comp_condition_name and ("ex" in condition_name) == ("ex" in comp_condition_name):
+                    condition_data = self.data[self.data['condition'] == condition_name]
+
+                    # Combine compatible and incompatible data
+                    dfc = comp_data[comp_data['Comp'] == 'comp'].assign(Comp="comp")
+                    dfi = condition_data[condition_data['Comp'] == 'incomp'].assign(Comp="incomp")
+                    combined_data = pd.concat([dfc, dfi])
+
+                    # Apply the delta function
+                    delta_condition = combined_data.groupby(["Subject"]).apply(deltafun).reset_index().drop("level_1", axis=1)
+
+                    # Aggregate the results
+                    def aggfun(x: pd.DataFrame) -> pd.DataFrame:
+                        return pd.DataFrame(
+                            [
+                                [
+                                    np.nanmean(x["mean_comp"]),
+                                    np.nanmean(x["mean_incomp"]),
+                                    np.nanmean(x["mean_bin"]),
+                                    np.nanmean(x["mean_effect"]),
+                                ]
+                            ],
+                            columns=["mean_comp", "mean_incomp", "mean_bin", "mean_effect"],
+                        )
+
+                    delta_aggregated = (
+                        delta_condition.groupby(["bin"]).apply(aggfun).reset_index()
+                    ).drop("level_1", axis=1)
+
+                    self.delta.append((f"{condition_name}", delta_aggregated))
+
+
 
     def select_subject(self, subject: int) -> pd.DataFrame:
         """Select subject"""
@@ -909,7 +1008,7 @@ class PrmsFit:
     '''
 
     sens_amp: tuple = (20, 0, 40, True, False)
-    sens_tau: tuple = (30, 5, 800, True, True)
+    sens_tau: tuple = (30, 5, 300, True, True)
     sens_drc: tuple = (0.5, 0.05, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
     sens_aa_shape: tuple = (2, 1, 5, True, False)
@@ -918,7 +1017,7 @@ class PrmsFit:
 
     # Response Process Parameters
     resp_amp: tuple = (20, 0, 40, True, False)
-    resp_tau: tuple = (30, 5, 800, True, True)
+    resp_tau: tuple = (30, 5, 300, True, True)
     resp_drc: tuple = (0.5, 0.05, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
     resp_aa_shape: tuple = (2, 1, 5, True, False)
@@ -1141,32 +1240,47 @@ class Fit:
         return pd.DataFrame(
             [
                 [
-                    self.res_th.prms.amp,
-                    self.res_th.prms.tau,
-                    self.res_th.prms.drc,
-                    self.res_th.prms.bnds,
-                    self.res_th.prms.res_mean,
-                    self.res_th.prms.res_sd,
-                    self.res_th.prms.aa_shape,
+                    self.res_th.prms.sens_amp,
+                    self.res_th.prms.sens_tau,
+                    self.res_th.prms.sens_drc,
+                    self.res_th.prms.sens_bnds,
+                    self.res_th.prms.sens_res_mean,
+                    self.res_th.prms.sens_res_sd,
+                    self.res_th.prms.sens_aa_shape,
+                    self.res_th.prms.resp_amp,
+                    self.res_th.prms.resp_tau,
+                    self.res_th.prms.resp_drc,
+                    self.res_th.prms.resp_bnds,
+                    self.res_th.prms.resp_res_mean,
+                    self.res_th.prms.resp_res_sd,
+                    self.res_th.prms.resp_aa_shape,
                     self.res_th.prms.sp_shape,
                     self.res_th.prms.sigma,
                     self.cost_value,
                 ]
             ],
             columns=[
-                "amp",
-                "tau",
-                "drc",
-                "bnds",
-                "res_mean",
-                "res_sd",
-                "aa_shape",
+                "sens_amp",
+                "sens_tau",
+                "sens_drc",
+                "sens_bnds",
+                "sens_res_mean",
+                "sens_res_sd",
+                "sens_aa_shape",
+                "resp_amp",
+                "resp_tau",
+                "resp_drc",
+                "resp_bnds",
+                "resp_res_mean",
+                "resp_res_sd",
+                "resp_aa_shape",
                 "sp_shape",
                 "sigma",
                 "cost",
             ],
             index=None,
         )
+
 
     def _function_to_minimise(self, x: list) -> float:
         '''
@@ -1185,6 +1299,7 @@ class Fit:
 
         return self.cost_value
 
+
     def _update_parameters(self, x: list) -> None:
         idx = 0
         for k in asdict(self.start_vals).keys():
@@ -1194,77 +1309,98 @@ class Fit:
         self.res_th.prms.sp_lim_sens = (-self.res_th.prms.sens_bnds, self.res_th.prms.sens_bnds)
         self.res_th.prms.sp_lim_resp = (-self.res_th.prms.resp_bnds, self.res_th.prms.resp_bnds)
 
+
+    
     @staticmethod
     def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
-        """calculate_cost_value_rmse
 
-        Calculate Root Mean Square Error between simulated
-        and observed data points
+        def get_delta(delta_list, condition_name):
+            for cond, df in delta_list:
+                if cond == condition_name:
+                    return df
+            raise KeyError(f"Condition name {condition_name} not found in delta list.")
 
-        Parameters
-        ----------
-        res_th
-        res_ob
-        """
-        n_rt = len(res_th.delta) * 2
-        n_err = len(res_th.caf) * 2
 
-        cost_caf = np.sqrt(
-            (1 / n_err)
-            * np.sum(
-                np.sum(
-                    (res_th.caf[["comp", "incomp"]] - res_ob.caf[["comp", "incomp"]])
-                    ** 2
-                )
-            )
-        )
-        cost_rt = np.sqrt(
-            (1 / n_rt)
-            * np.sum(
-                np.sum(
-                    (
-                        res_th.delta[["mean_comp", "mean_incomp"]]
-                        - res_ob.delta[["mean_comp", "mean_incomp"]]
-                    )
-                    ** 2
-                )
-            )
-        )
+        total_n_rt = 0
+        total_n_err = 0
+        total_cost = 0
 
-        weight_rt = n_rt / (n_rt + n_err)
+        # Conditions to be skipped
+        skip_conditions = ["exHULU", "anHULU"]
+
+        # Calculate total RT and error data points across all conditions
+        for condition_name_th, condition_df_th in res_th.caf.items():
+            condition_name_ob = condition_name_th  # Assuming the same condition name in observed data
+            condition_df_ob = res_ob.caf.get(condition_name_ob)
+
+            total_n_err += len(condition_df_ob)
+            if condition_name_ob not in skip_conditions:
+                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
+                total_n_rt += len(delta_df_ob["mean_comp"]) + len(delta_df_ob["mean_incomp"])
+
+        # Calculate weights
+        weight_rt = total_n_rt / (total_n_rt + total_n_err)
         weight_caf = (1 - weight_rt) * 1500
 
-        return (weight_caf * cost_caf) + (weight_rt * cost_rt)
+        # Iterate through the CAF data for each condition
+        for condition_name_th, condition_df_th in res_th.caf.items():
+            condition_name_ob = condition_name_th  # Assuming the same condition name in observed data
+            condition_df_ob = res_ob.caf.get(condition_name_ob)
+
+            # Calculate the cost for the current CAF condition using RMSE
+            cost_caf = np.sqrt(np.mean((condition_df_th - condition_df_ob) ** 2))
+
+            # Add the weighted cost for CAF
+            total_cost += weight_caf * cost_caf
+
+            # If condition is not in skip_conditions, calculate the cost for delta
+            if condition_name_ob not in skip_conditions:
+                delta_df_th = get_delta(res_th.delta, condition_name_ob)
+                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
+
+                # Calculate the cost for the current delta condition using RMSE
+                if condition_name_ob in ["exHULU", "anHULU"]:
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2))
+                else:
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
+
+                # Add the weighted cost for delta
+                total_cost += weight_rt * cost_delta
+
+        return total_cost
+
+
+
+
+
 
     @staticmethod
     def calculate_cost_value_spe(res_th: Sim, res_ob: Ob) -> float:
-        """calculate_cost_calue_spe
+        total_cost_caf = 0
+        total_cost_rt = 0
 
-        Calculate Squared Percentage Error between simulated
-        and observed data points
+        # Calculate the Squared Percentage Error for each condition and sum them
+        for condition_name in res_th.caf:
+            cost_caf = np.sum(
+                (
+                    (res_ob.caf[condition_name].iloc[:, 1:3] - res_th.caf[condition_name].iloc[:, 1:3])
+                    / res_ob.caf[condition_name].iloc[:, 1:3]
+                )
+                ** 2
+            ).sum()
 
-        Parameters
-        ---------
-        res_th
-        res_ob
-        """
-        cost_caf = np.sum(
-            (
-                (res_ob.caf.iloc[:, 1:3] - res_th.caf.iloc[:, 1:3])
-                / res_ob.caf.iloc[:, 1:3]
-            )
-            ** 2
-        ).sum()
+            cost_rt = np.sum(
+                (
+                    (res_ob.delta[condition_name].iloc[:, 1:4] - res_th.delta[condition_name].iloc[:, 1:4])
+                    / res_ob.delta[condition_name].iloc[:, 1:4]
+                )
+                ** 2
+            ).sum()
 
-        cost_rt = np.sum(
-            (
-                (res_ob.delta.iloc[:, 1:4] - res_th.delta.iloc[:, 1:4])
-                / res_ob.delta.iloc[:, 1:4]
-            )
-            ** 2
-        ).sum()
+            total_cost_caf += cost_caf
+            total_cost_rt += cost_rt
 
-        return cost_rt + cost_caf
+        return total_cost_rt + total_cost_caf
 
 
 class FitSubjects:
