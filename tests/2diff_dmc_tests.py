@@ -1,8 +1,12 @@
 '''
-Fitting Data via DMCfun package adaptation.
+Fitting Data via own DMCfun Adaptation:
+- 2 diffusion processes
+    - 1 sensory
+    - 1 response
+
 
 Author: Kenan Suljic
-Date: 08.08.2023
+Date: 14.08.2023
 
 '''
 
@@ -43,7 +47,7 @@ res_ob = Ob(data, n_caf=9)
 # %%
 prmsfit = PrmsFit()
 #prmsfit.dmc_prms()
-prmsfit.set_random_start_values(seed_value=18)
+prmsfit.set_random_start_values(seed_value=12)
 #prmsfit.set_start_values()
 prmsfit
 
