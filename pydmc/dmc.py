@@ -76,7 +76,7 @@ class Prms:
     sens_drc: float = 0.5
     sens_bnds: float = 75
     sens_aa_shape: float = 2
-    sens_res_mean: float = 300
+    sens_res_mean: float = 150
     sens_res_sd: float = 30
 
     # Response Process Parameters
@@ -85,7 +85,7 @@ class Prms:
     resp_drc: float = 0.5
     resp_bnds: float = 75
     resp_aa_shape: float = 2
-    resp_res_mean: float = 300
+    resp_res_mean: float = 150
     resp_res_sd: float = 30
 
     # Shared Parameters
@@ -543,14 +543,17 @@ def _run_simulation(
     else:
         width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
         res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
+    #
 
+
+    #
     for trl in prange(n_trls):
         trl_xt = sp[trl]
 
         # Check sensory results if provided
         reverse_outcome = False
         if sens_results is not None:
-            reverse_outcome = sens_results[1, trl] == 0
+            reverse_outcome = sens_results[1, trl] == 0 # resp boundaries flipped if sens == 0
 
         for tp in range(0, t_max):
             trl_xt += drc[tp] + dr[trl] + (sigma * np.random.randn())
@@ -585,15 +588,18 @@ def _run_simulation_full(
         width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
         res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
 
+    #
     activation = np.zeros(t_max)
     trials = np.zeros((n_trls_data, t_max))
+    #
+
     for trl in prange(n_trls):
 
-        rand_nums = np.random.randn(1, t_max)
+        rand_nums = np.random.randn(1, t_max) # ???
         xt = drc + dr[trl] + (sigma * rand_nums)
 
         # variable starting point
-        xt[0] += sp[trl]
+        xt[0] += sp[trl] # ?
 
         # cumulate activation over time
         xt = np.cumsum(xt)
@@ -1007,12 +1013,25 @@ class PrmsFit:
     sigma: tuple = (4, 1, 10, False, False) # Scaling parameter of the drift diffusion process
     '''
 
+    '''
+    From Paper: The formal model specification for DMC is provided in 
+    Ulrich et al. (2015) and thus, will only be briefly described here. 
+    The time-course of automatic activation is modelled using a 
+    Gamma density function with a shape parameter (aaShape, with α ​> ​1) and 
+    a scale parameter (tau, τ) multiplied by a constant 
+    (amp, +ve for compatible, -ve for incompatible trials), with 
+    the drift rate of automatic (μa) being the first derivative of 
+    the density function, and the drift rate of controlled activation (μc) 
+    being constant over a trial. This gives DMC seven parameters that can vary:
+    amp, tau, aaShape, drc, bnds, resMean, and resSD (see Table 1).
+    '''
+    # Sensory Process Parameters
     sens_amp: tuple = (20, 0, 40, True, False)
     sens_tau: tuple = (30, 5, 300, True, True)
     sens_drc: tuple = (0.5, 0.05, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
-    sens_aa_shape: tuple = (2, 1, 5, True, False)
-    sens_res_mean: tuple = (300, 100, 800, True, False)
+    sens_aa_shape: tuple = (2, 1, 3, True, False)
+    sens_res_mean: tuple = (150, 50, 400, True, False)
     sens_res_sd: tuple = (30, 5, 100, True, False)
 
     # Response Process Parameters
@@ -1020,12 +1039,12 @@ class PrmsFit:
     resp_tau: tuple = (30, 5, 300, True, True)
     resp_drc: tuple = (0.5, 0.05, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
-    resp_aa_shape: tuple = (2, 1, 5, True, False)
-    resp_res_mean: tuple = (300, 100, 800, True, False)
+    resp_aa_shape: tuple = (2, 1, 3, True, False)
+    resp_res_mean: tuple = (150, 50, 400, True, False)
     resp_res_sd: tuple = (30, 5, 100, True, False)
 
     # Shared Parameters
-    sp_shape: tuple = (3, 2, 5, True, False)
+    sp_shape: tuple = (3, 2, 4, True, False)
     sigma: tuple = (4, 1, 10, False, False)
 
 
