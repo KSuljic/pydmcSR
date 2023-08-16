@@ -4,6 +4,7 @@
 .idea/
 pydmc/__pycache__*
 pydmc.egg-info
+data
 
 # Unit test / coverage reports
 htmlcov/
