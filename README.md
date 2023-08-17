@@ -7,7 +7,8 @@ Instead of 1 Diffusion Process, there are 2: One sensory diffusion process & 1 r
 
 ## Installation
 
-git clone <https://github.com/KSuljic/pydmcSR.git>
+
+git clone [<https://github.com/KSuljic/pydmcSR.git>](https://github.com/KSuljic/pydmcSR.git)
 
 pip install -e pydmc
 
