@@ -8,7 +8,7 @@ functions (<https://www.sciencedirect.com/science/article/pii/S0010028515000195>
 
 ## Installation
 
-git clone <https://github.com/igmmgi/pydmc.git>
+git clone [<https://github.com/igmmgi/pydmc.git>](https://github.com/KSuljic/pydmcSR.git)
 
 pip install -e pydmc
 
