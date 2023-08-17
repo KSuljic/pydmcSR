@@ -303,9 +303,83 @@ class Sim:
 
     def _run_simulation_full(self) -> None:
 
-        self.xt = []
-        self.data_trials = []
+        self.sens_xt = []
+        self.sens_data_trials = []
+
+        self.resp_xt = []
+        self.resp_data_trials = []
+
         self.data = []
+
+        for condition_name, sens_comp, resp_comp in self.conditions:
+
+            # Sensory Process (SP)
+            sens_drc = (
+                sens_comp
+                * self.sens_eq4
+                * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
+            )
+            sens_dr, sens_sp = self._sens_dr(), self._sp()
+
+            sens_activation, sens_trials, sens_data = _run_simulation(
+                sens_drc,
+                sens_sp,
+                sens_dr,
+                self.prms.t_max,
+                self.prms.sigma,
+                self.prms.res_dist,
+                self.prms.sens_res_mean,
+                self.prms.sens_res_sd,
+                self.prms.sens_bnds,
+                self.n_trls,
+                self.n_trls_data, #TODO
+            )
+
+            self.sens_xt.append(sens_activation)
+            self.sens_data_trials.append(sens_trials)
+
+
+
+            # Response Process (RP)
+            resp_drc = (
+                resp_comp
+                * self.resp_eq4
+                * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
+            )
+            resp_dr, resp_sp = self._resp_dr(), self._sp()
+
+            resp_activation, resp_trials, resp_data = _run_simulation(
+                resp_drc,
+                resp_sp,
+                resp_dr,
+                self.prms.t_max,
+                self.prms.sigma,
+                self.prms.res_dist,
+                self.prms.resp_res_mean,
+                self.prms.resp_res_sd,
+                self.prms.resp_bnds,
+                self.n_trls,
+                self.n_trls_data, #TODO
+                sens_data,
+            )
+
+            self.resp_xt.append(resp_activation)
+            self.resp_data_trials.append(resp_trials)
+
+
+
+            # Combine RTs from sensory and response processes
+            combined_RT = sens_data[0] + resp_data[0]
+            combined_outcome = resp_data[1]
+
+            # Store the combined data
+            self.data[condition_name] = (combined_RT, combined_outcome)
+            self.SR_data[condition_name] = (sens_data, resp_data)
+
+
+
+
+        '''
         for comp in (1, -1):
 
             drc = (
@@ -332,6 +406,7 @@ class Sim:
             self.xt.append(activation)
             self.data_trials.append(trials)
             self.data.append(data)
+            '''
 
 
     def _results_summary(self) -> None:
@@ -579,6 +654,7 @@ def _run_simulation_full(
     bnds,
     n_trls,
     n_trls_data,
+    sens_results=None
 ):
 
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
@@ -604,10 +680,15 @@ def _run_simulation_full(
         # cumulate activation over time
         xt = np.cumsum(xt)
 
+        # Check sensory results if provided
+        reverse_outcome = False
+        if sens_results is not None:
+            reverse_outcome = sens_results[1, trl] == 0 # resp boundaries flipped if sens == 0
+
         for tp in range(len(xt)):
             if np.abs(xt[tp]) > bnds:
                 data[0, trl] = tp + max(0, res_dist[trl])
-                data[1, trl] = xt[tp] < 0.0
+                data[1, trl] = (xt < 0.0) if not reverse_outcome else (xt >= 0.0)
                 break
 
         activation += xt
@@ -1109,7 +1190,7 @@ class Fit:
     def __init__(
         self,
         res_ob: Ob,
-        n_trls: int = 100_000,
+        n_trls: int = 10000,
         sim_prms: Prms = Prms(sp_dist=1), # simulation parameters of type 'Prms'
         #sim_prms: Prms = Prms(), # simulation parameters of type 'Prms'
         start_vals: PrmsFit = PrmsFit(), # Starting values for parameters, instance of PrmsFit

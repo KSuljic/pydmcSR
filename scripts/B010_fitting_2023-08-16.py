@@ -94,7 +94,9 @@ fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 # %%
 fit_diff.fit_data('differential_evolution', maxiter=75, disp=True, seed=seed)
 
-# sens_amp:35.9 sens_tau:205.5 sens_drc:0.51 sens_bnds:80.0 sens_aa_shape: 2.2 sens_res_mean: 102 sens_res_sd:36.5 resp_amp:19.2 resp_tau:90.6 resp_drc:0.31 resp_bnds:115.5 resp_aa_shape: 1.1 resp_res_mean:  70 resp_res_sd:27.6 sp_shape: 3.3 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=277.83
+
+
+# ----------------- #
 
 
 # %%
@@ -108,7 +110,60 @@ fit_vals_x = fit_diff.fit['x']
 fit_vals_x
 
 
+# ----------------- #
+
+
+
 # %%
 fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit_adv, n_caf=9, search_grid=False) 
+fit_diff_adv.start_vals
+
+# %%
 fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=10, disp=True, seed=seed)
 
+
+
+
+
+
+
+
+
+
+
+# ----------------- #
+
+# %%
+df.insert(len(df.columns), 'Source', 'Og')
+
+#%%
+df_fit = sim2data(fit_diff.res_th)
+
+# %%
+df_fit.insert(len(df_fit.columns), 'Source', 'Fit')
+df_comp = pd.concat([df, df_fit])
+
+
+# %%
+sns.displot(data=df_comp,
+             x='RT',
+             hue='Source',
+             col='Error',
+             row='condition',
+             kind='kde',
+             )
+
+
+# ----------------- #
+
+# %%
+df_fit.groupby('condition').count()
+
+# %%
+fit_diff.best_prms_out
+
+# %%
+dat = pydmc.Sim(fit_diff.best_prms_out, n_caf=9, full_data=True)
+
+# %%
+dat.plot.summary() 

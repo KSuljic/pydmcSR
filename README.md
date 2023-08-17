@@ -1,14 +1,13 @@
 
-# pydmc
+# pydmcSR
 
-Python implementation of the diffusion process model (Diffusion Model
-for Conflict Tasks, DMC) presented in Automatic and controlled stimulus
-processing in conflict tasks: Superimposed diffusion processes and delta
-functions (<https://www.sciencedirect.com/science/article/pii/S0010028515000195>).
+Adaptded Version of pydmc: Python implementation of the diffusion process model (Diffusion Model for Conflict Tasks, DMC) presented in Automatic and controlled stimulus processing in conflict tasks: Superimposed diffusion processes and delta functions (<https://www.sciencedirect.com/science/article/pii/S0010028515000195>).
+
+Instead of 1 Diffusion Process, there are 2: One sensory diffusion process & 1 response diffusion process. The reason is to enable that both can be either congruent or incongurent sepereately.
 
 ## Installation
 
-git clone <https://github.com/igmmgi/pydmc.git>
+git clone <https://github.com/KSuljic/pydmcSR.git>
 
 pip install -e pydmc
 
