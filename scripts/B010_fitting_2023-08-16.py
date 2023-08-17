@@ -137,11 +137,20 @@ fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4
 df.insert(len(df.columns), 'Source', 'Og')
 
 #%%
-df_fit = sim2data(fit_diff.res_th)
+df_fit = sim2data(fit_diff_adv.res_th)
 
 # %%
 df_fit.insert(len(df_fit.columns), 'Source', 'Fit')
-df_comp = pd.concat([df, df_fit])
+
+# %%
+df_fit_sub = df_fit.groupby('condition').sample(n=11982)
+
+# %%
+df_comp = pd.concat([df, df_fit_sub])
+
+
+# %%
+df_fit_sub.groupby('condition').count()
 
 
 # %%
@@ -151,13 +160,12 @@ sns.displot(data=df_comp,
              col='Error',
              row='condition',
              kind='kde',
+             common_norm=True
              )
 
 
 # ----------------- #
 
-# %%
-df_fit.groupby('condition').count()
 
 # %%
 fit_diff.best_prms_out
