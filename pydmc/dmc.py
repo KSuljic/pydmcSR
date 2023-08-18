@@ -250,9 +250,9 @@ class Sim:
             # Sensory Process (SP)
             sens_drc = (
                 sens_comp
-                * self.sens_eq4
+                * self.sens_eq4 # Expected automatic evidence accumulation trajectory (https://link.springer.com/article/10.3758/s13423-023-02288-0)
                 * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
-            )
+            ) # corresponding automatic drift rate
             sens_dr, sens_sp = self._sens_dr(), self._sp()
 
             sens_data = _run_simulation(
@@ -303,6 +303,7 @@ class Sim:
 
     def _run_simulation_full(self) -> None:
 
+        # Initializes empty lists for sensory and response data.
         self.sens_xt = []
         self.sens_data_trials = []
 
@@ -313,15 +314,17 @@ class Sim:
 
         for condition_name, sens_comp, resp_comp in self.conditions:
 
+            # Calculates the sensory drc value using the equation sens_drcs provided.
             # Sensory Process (SP)
             sens_drc = (
                 sens_comp
                 * self.sens_eq4
                 * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
             )
+            # Calculates the sensory drift rate and starting point.
             sens_dr, sens_sp = self._sens_dr(), self._sp()
 
-            sens_activation, sens_trials, sens_data = _run_simulation(
+            sens_activation, sens_trials, sens_data = _run_simulation_full(
                 sens_drc,
                 sens_sp,
                 sens_dr,
@@ -339,7 +342,7 @@ class Sim:
             self.sens_data_trials.append(sens_trials)
 
 
-
+            # Calculates the response drc value.
             # Response Process (RP)
             resp_drc = (
                 resp_comp
@@ -348,7 +351,7 @@ class Sim:
             )
             resp_dr, resp_sp = self._resp_dr(), self._sp()
 
-            resp_activation, resp_trials, resp_data = _run_simulation(
+            resp_activation, resp_trials, resp_data = _run_simulation_full(
                 resp_drc,
                 resp_sp,
                 resp_dr,
@@ -563,14 +566,19 @@ class Sim:
             '''
         
     def _sens_dr(self) -> np.ndarray:
+        '''Returns sensory drift rates based on the specified distribution.'''
         if self.prms.dr_dist == 0:
+            # constant between trial drift rate
             return np.ones(self.n_trls) * self.prms.sens_drc
         elif self.prms.dr_dist == 1:
+            # between trial variablity in drift rate from beta distribution
             return self.rand_beta(self.prms.sens_dr_lim, self.prms.sens_dr_shape, self.n_trls)
         elif self.prms.dr_dist == 2:
+            # between trial variablity in drift rate from uniform
             return np.random.uniform(self.prms.sens_dr_lim[0], self.prms.sens_dr_lim[1], self.n_trls)
 
     def _resp_dr(self) -> np.ndarray:
+        '''Returns response drift rates based on the specified distribution.'''
         if self.prms.dr_dist == 0:
             return np.ones(self.n_trls) * self.prms.resp_drc
         elif self.prms.dr_dist == 1:
@@ -612,7 +620,9 @@ def _run_simulation(
 def _run_simulation(
     drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None
 ):
+    # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
+
     if res_dist_type == 1:
         res_dist = np.random.normal(res_mean, res_sd, n_trls)
     else:
@@ -621,17 +631,21 @@ def _run_simulation(
     #
 
 
-    #
+    # For each trial:
     for trl in prange(n_trls):
+
         trl_xt = sp[trl]
 
-        # Check sensory results if provided
+        # Checks sensory results (if provided) to determine the outcome direction.
         reverse_outcome = False
         if sens_results is not None:
             reverse_outcome = sens_results[1, trl] == 0 # resp boundaries flipped if sens == 0
 
         for tp in range(0, t_max):
-            trl_xt += drc[tp] + dr[trl] + (sigma * np.random.randn())
+
+            trl_xt += drc[tp] + dr[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+            
+            # Determines the RT and outcome based on the accumulated evidence and boundary.
             if np.abs(trl_xt) > bnds:
                 data[0, trl] = tp + max(0, res_dist[trl])
                 data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
@@ -657,6 +671,7 @@ def _run_simulation_full(
     sens_results=None
 ):
 
+    # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
     if res_dist_type == 1:
         res_dist = np.random.normal(res_mean, res_sd, n_trls)
@@ -671,26 +686,29 @@ def _run_simulation_full(
 
     for trl in prange(n_trls):
 
-        rand_nums = np.random.randn(1, t_max) # ???
-        xt = drc + dr[trl] + (sigma * rand_nums)
+        # Generates random numbers and calculates evidence accumulation as a Wiener process.
+        rand_nums = np.random.randn(1, t_max) 
+        xt = drc + dr[trl] + (sigma * rand_nums) # evidence accumulation can be modeled as a single combined Wiener process
 
-        # variable starting point
-        xt[0] += sp[trl] # ?
+        # Adjusts the starting point.
+        xt[0] += sp[trl] #
 
         # cumulate activation over time
         xt = np.cumsum(xt)
 
-        # Check sensory results if provided
+        # Checks sensory results (if provided) to determine the outcome direction.
         reverse_outcome = False
         if sens_results is not None:
             reverse_outcome = sens_results[1, trl] == 0 # resp boundaries flipped if sens == 0
 
+        # Determines the RT and outcome based on the accumulated evidence and boundary.
         for tp in range(len(xt)):
             if np.abs(xt[tp]) > bnds:
                 data[0, trl] = tp + max(0, res_dist[trl])
                 data[1, trl] = (xt < 0.0) if not reverse_outcome else (xt >= 0.0)
                 break
 
+        # Averages the activation over trials.
         activation += xt
         if trl < n_trls_data:
             trials[trl, :] = xt
@@ -1106,10 +1124,11 @@ class PrmsFit:
     being constant over a trial. This gives DMC seven parameters that can vary:
     amp, tau, aaShape, drc, bnds, resMean, and resSD (see Table 1).
     '''
+    # default, min, max, free fit, free grid
     # Sensory Process Parameters
     sens_amp: tuple = (20, 0, 40, True, False)
-    sens_tau: tuple = (30, 5, 300, True, True)
-    sens_drc: tuple = (0.5, 0.05, 1.0, True, False)
+    sens_tau: tuple = (150, 5, 300, True, True)
+    sens_drc: tuple = (0.5, 0.1, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
     sens_aa_shape: tuple = (2, 1, 3, True, False)
     sens_res_mean: tuple = (150, 50, 400, True, False)
@@ -1117,8 +1136,8 @@ class PrmsFit:
 
     # Response Process Parameters
     resp_amp: tuple = (20, 0, 40, True, False)
-    resp_tau: tuple = (30, 5, 300, True, True)
-    resp_drc: tuple = (0.5, 0.05, 1.0, True, False)
+    resp_tau: tuple = (150, 5, 300, True, True)
+    resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
     resp_aa_shape: tuple = (2, 1, 3, True, False)
     resp_res_mean: tuple = (150, 50, 400, True, False)
@@ -1673,7 +1692,8 @@ class Plot:
         **kwargs,
     ):
         """Plot activation."""
-
+        
+        # Checks for required attributes and conditions.
         if not isinstance(self.res, Sim):
             print("Observed data does not have activation function!")
             return
@@ -1687,10 +1707,13 @@ class Plot:
 
         l_kws = _filter_dict(kwargs, plt.Line2D)
 
+        # Plots the theoretical activation function (eq4).
         plt.plot(self.res.eq4, "k-")
         plt.plot(self.res.eq4 * -1, "k--")
-        plt.plot(self.res.xt[0], color=colors[0], label=cond_labels[0], **l_kws)
-        plt.plot(self.res.xt[1], color=colors[1], label=cond_labels[1], **l_kws)
+        # Plots activation for compatible and incompatible conditions.
+        plt.plot(self.res.xt[0], color=colors[0], label=cond_labels[0], **l_kws) # diffusion compatible
+        plt.plot(self.res.xt[1], color=colors[1], label=cond_labels[1], **l_kws) # diffusion incompatible
+        # Plots cumulative drift criterion.
         plt.plot(
             np.cumsum(np.repeat(self.res.prms.drc, self.res.prms.t_max)),
             color="black",
@@ -1698,6 +1721,7 @@ class Plot:
         )
         self._bounds()
 
+        # Adjusts the plot appearance and displays the plot.
         kwargs.setdefault("xlim", [0, self.res.prms.t_max])
         kwargs.setdefault("ylim", [-self.res.prms.bnds - 20, self.res.prms.bnds + 20])
         kwargs.setdefault("xlabel", "Time (ms)")
