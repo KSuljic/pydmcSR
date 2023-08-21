@@ -83,7 +83,20 @@ df.tail()
 
 
 # %%
-res_ob = Ob(df, n_caf=9)
+res_ob = Ob(df, n_caf=9, error_coding=(1,0))
+
+
+
+
+
+# %%
+Plot(res_ob).caf()
+
+# %%
+Plot(res_ob).delta()
+
+
+# ----------------- #
 
 
 # %%
@@ -356,6 +369,8 @@ out = widgets.interactive_output(widget_function, {
 })
 
 display(ui, out)
+
+
 # %%
 parameters = {
     'sens_amp': sens_amp_slider.value,
@@ -391,7 +406,7 @@ prmsfit
 fit = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False)
 
 # %%
-fit.fit_data(maxiter=500, disp=True, seed=seed)
+fit.fit_data(maxiter=1, disp=True)
 
 
 # %%
@@ -402,3 +417,13 @@ fit.best_cost
 Parameters = Prms(**parameters)
 sim = Sim(Parameters, n_caf=9)
 Fit.calculate_cost_value_rmse(sim, res_ob)
+
+# ----------------- #
+
+
+# %%
+dmc.Fit.calculate_cost_value_rmse(sim, res_ob)
+
+
+
+# %%

@@ -16,6 +16,7 @@ import glob
 import inspect
 import pkg_resources
 import matplotlib.pyplot as plt
+from brokenaxes import brokenaxes
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass, asdict
@@ -1452,10 +1453,10 @@ class Fit:
             condition_name_ob = condition_name_th  # Assuming the same condition name in observed data
             condition_df_ob = res_ob.caf.get(condition_name_ob)
 
-            total_n_err += len(condition_df_ob)
+            total_n_err += len(condition_df_ob) # caf len
             if condition_name_ob not in skip_conditions:
                 delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
-                total_n_rt += len(delta_df_ob["mean_comp"]) + len(delta_df_ob["mean_incomp"])
+                total_n_rt += len(delta_df_ob["mean_comp"]) + len(delta_df_ob["mean_incomp"]) # delta len
 
         # Calculate weights
         weight_rt = total_n_rt / (total_n_rt + total_n_err)
@@ -1902,13 +1903,16 @@ class Plot:
     def caf(
         self,
         show: bool = True,
-        cond_labels: tuple = ("Compatible", "Incompatible"),
         legend_position: str = "lower right",
-        colors: tuple = ("green", "red"),
+        colors: tuple = ('grey', 'green', 'darkblue', 'darkred',
+                         'silver', 'limegreen', 'dodgerblue', 'tomato'),
         **kwargs,
     ):
         """Plot CAF."""
 
+        cond_labels =  tuple(self.res.caf.keys())
+
+
         if show:
             plt.figure(len(plt.get_fignums()) + 1)
 
@@ -1916,48 +1920,88 @@ class Plot:
         kwargs.setdefault("markersize", 4)
 
         l_kws = _filter_dict(kwargs, plt.Line2D)
-        for idx, comp in enumerate(("comp", "incomp")):
-            plt.plot(
-                self.res.caf["bin"],
-                self.res.caf[comp],
-                color=colors[idx],
+
+        fig = plt.figure(figsize=(8, 5))
+        bax = brokenaxes(ylims=((0, 0.01), (0.45, 1.05)))
+
+        bax.big_ax.set_xlabel('RT Bin')
+        bax.big_ax.set_ylabel('CAF')
+        
+        for idx, condi in enumerate(cond_labels):
+            
+            df = self.res.caf[condi].reset_index()
+
+            bax.plot(
+                df["bin"],
+                df['Error'],
                 label=cond_labels[idx],
+                color=colors[idx],
                 **l_kws,
             )
 
-        plt.xticks(
-            range(1, self.res.n_caf + 1), [str(x) for x in range(1, self.res.n_caf + 1)]
-        )
 
-        kwargs.setdefault("ylim", [0, 1.1])
-        kwargs.setdefault("xlabel", "RT Bin")
-        kwargs.setdefault("ylabel", "CAF")
+        # plt.xticks(
+        #     range(1, self.res.n_caf + 1) #, [str(x) for x in range(1, self.res.n_caf + 1)]
+        # )
 
-        _adjust_plt(**kwargs)
+        # kwargs.setdefault("ylim", [0, 1.1])
+        # kwargs.setdefault("xlabel", "RT Bin")
+        # kwargs.setdefault("ylabel", "CAF")
+        
+        bax.grid(axis='y', alpha=0.5)
+        bax.set_xlabel('RT Bin', labelpad=20)
+        bax.set_ylabel('CAF')
 
-        if legend_position:
-            plt.legend(loc=legend_position)
+        bax.legend(loc=legend_position, ncol=2)
+
+        #_adjust_plt(**kwargs)
+
+        # if legend_position:
+        #     plt.legend(loc=legend_position)
 
         if show:
             plt.show(block=False)
 
-    def delta(self, show: bool = True, **kwargs):
+    def delta(
+            self, 
+            show: bool = True, 
+            legend_position: str = "upper left",
+            colors: tuple = ('green', 'darkblue', 'darkred',
+                             'limegreen', 'dodgerblue', 'tomato'),
+            **kwargs):
         """Plot reaction-time delta plots."""
+
+        n_condi =  len(self.res.delta)
+
+        DatX, DatY = [], []
+
+        fig = plt.figure(figsize=(8, 4))
+
 
         if show:
             plt.figure(len(plt.get_fignums()) + 1)
 
-        kwargs.setdefault("color", "black")
         kwargs.setdefault("marker", "o")
         kwargs.setdefault("markersize", 4)
 
-        datx, daty = self.res.delta["mean_bin"], self.res.delta["mean_effect"]
+        for idx in np.arange(n_condi):
+            
+            condi, df = self.res.delta[idx]
 
-        l_kws = _filter_dict(kwargs, plt.Line2D)
-        plt.plot(datx, daty, **l_kws)
+            datx, daty = df["mean_bin"], df["mean_effect"]
 
-        kwargs.setdefault("xlim", [np.min(datx) - 100, np.max(datx) + 100])
-        kwargs.setdefault("ylim", [np.min(daty) - 25, np.max(daty) + 25])
+            l_kws = _filter_dict(kwargs, plt.Line2D)
+            plt.plot(datx, daty, color=colors[idx], label=condi, **l_kws)
+
+            DatX.append(datx)
+            DatY.append(daty)
+    
+        plt.grid(axis='y', alpha=0.5)  # Add this line for y-grid with alpha=0.5
+        plt.legend(loc=legend_position, ncol=2)
+
+
+        kwargs.setdefault("xlim", [np.min(DatX) - 50, np.max(DatX) + 50])
+        kwargs.setdefault("ylim", [np.min(DatY) - 50, np.max(DatY) + 50])
         kwargs.setdefault("xlabel", "Time (ms)")
         kwargs.setdefault("ylabel", r"$\Delta$  RT [ms]")
 
