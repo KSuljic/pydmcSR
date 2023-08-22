@@ -101,11 +101,11 @@ fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=50, disp=True
 # ----------------- #
 
 # %%
-fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit_adv, n_caf=9, search_grid=False) 
+fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
 fit_diff_adv.start_vals
 
 # %%
-fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=10, disp=True, seed=seed)
+fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=70, disp=True, seed=seed)
 
 
 # ----------------- #
@@ -124,11 +124,22 @@ fit_vals_x
 # ----------------- #
 
 # %%
-fit_test = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
-fit_test.start_vals
+fit_nelder = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
+fit_nelder.start_vals
 
 # %%
-fit_test.fit_data(maxiter=1, disp=True)
+fit_nelder.fit_data(maxiter=300, disp=True)
+
+
+# %%
+print(f'Best Parameters: {fit_nelder.best_prms_out}')
+print(f'Best cost: {fit_nelder.best_cost}')
+
+prmsfit = set_best_parameters(fit_nelder)
+
+# %%
+fit_vals_x = fit_nelder.fit['x']
+fit_vals_x
 
 
 
@@ -385,7 +396,7 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # %%
 import inspect
 
-para_dict = fit_diff.best_prms_out.__dict__
+para_dict = fit_nelder.best_prms_out.__dict__
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 
