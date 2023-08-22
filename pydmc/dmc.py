@@ -16,6 +16,7 @@ import glob
 import inspect
 import pkg_resources
 import matplotlib.pyplot as plt
+import seaborn as sns
 from brokenaxes import brokenaxes
 import numpy as np
 import pandas as pd
@@ -640,7 +641,7 @@ def _run_simulation(
         # Checks sensory results (if provided) to determine the outcome direction.
         reverse_outcome = False
         if sens_results is not None:
-            reverse_outcome = sens_results[1, trl] == 0 # resp boundaries flipped if sens == 0
+            reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1
 
         for tp in range(0, t_max):
 
@@ -700,7 +701,7 @@ def _run_simulation_full(
         # Checks sensory results (if provided) to determine the outcome direction.
         reverse_outcome = False
         if sens_results is not None:
-            reverse_outcome = sens_results[1, trl] == 0 # resp boundaries flipped if sens == 0
+            reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1
 
         # Determines the RT and outcome based on the accumulated evidence and boundary.
         for tp in range(len(xt)):
@@ -1430,7 +1431,7 @@ class Fit:
         self.res_th.prms.sp_lim_resp = (-self.res_th.prms.resp_bnds, self.res_th.prms.resp_bnds)
 
 
-    
+    '''
     @staticmethod
     def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
 
@@ -1488,9 +1489,62 @@ class Fit:
                 total_cost += weight_rt * cost_delta
 
         return total_cost
+        '''
 
+    @staticmethod
+    def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
 
+        def get_delta(delta_list, condition_name):
+            for cond, df in delta_list:
+                if cond == condition_name:
+                    return df
+            raise KeyError(f"Condition name {condition_name} not found in delta list.")
 
+        total_cost = 0
+        max_caf_cost = 0
+        max_delta_cost = 0
+
+        # First, find the maximum costs for normalization purposes
+        for condition_name_th, condition_df_th in res_th.caf.items():
+            condition_name_ob = condition_name_th
+            condition_df_ob = res_ob.caf.get(condition_name_ob)
+
+            cost_caf = np.sqrt(np.mean((condition_df_th - condition_df_ob) ** 2))
+            max_caf_cost = max(max_caf_cost, cost_caf)
+
+            if condition_name_ob not in ["exHULU", "anHULU"]:
+                delta_df_th = get_delta(res_th.delta, condition_name_ob)
+                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
+
+                if condition_name_ob in ["exHULU", "anHULU"]:
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2))
+                else:
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
+                max_delta_cost = max(max_delta_cost, cost_delta)
+
+        # Set weights for CAF and delta (RT) to be equal
+        weight_rt = 0.5
+        weight_caf = 0.5
+
+        # Now, compute the costs and normalize them
+        for condition_name_th, condition_df_th in res_th.caf.items():
+            condition_name_ob = condition_name_th
+            condition_df_ob = res_ob.caf.get(condition_name_ob)
+
+            cost_caf = np.sqrt(np.mean((condition_df_th - condition_df_ob) ** 2)) / max_caf_cost
+            total_cost += weight_caf * cost_caf
+
+            if condition_name_ob not in ["exHULU", "anHULU"]:
+                delta_df_th = get_delta(res_th.delta, condition_name_ob)
+                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
+
+                if condition_name_ob in ["exHULU", "anHULU"]:
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) / max_delta_cost
+                else:
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) / max_delta_cost
+                total_cost += weight_rt * cost_delta
+
+        return total_cost
 
 
 
@@ -1795,19 +1849,22 @@ class Plot:
     def pdf(
         self,
         show: bool = True,
-        cond_labels: tuple = ("Compatible", "Incompatible"),
         legend_position: str = "upper right",
-        colors: tuple = ("green", "red"),
+        colors: tuple = ('grey', 'green', 'darkblue', 'darkred',
+                         'silver', 'limegreen', 'dodgerblue', 'tomato'),
         **kwargs,
     ):
         """Plot PDF."""
+
+        cond_labels =  tuple(self.res.caf.keys())
+
 
         if show:
             plt.figure(len(plt.get_fignums()) + 1)
 
         l_kws = _filter_dict(kwargs, plt.Line2D)
 
-        if isinstance(self.res, Sim):
+        if isinstance(self.res, Sim): # TODO
 
             for comp in (0, 1):
                 pdf, axes = fastKDE.pdf(self.res.data[comp][0])
@@ -1818,25 +1875,33 @@ class Plot:
 
         elif isinstance(self.res, Ob):
 
-            for idx, comp in enumerate(("comp", "incomp")):
-                data = np.array(self.res.data["RT"][self.res.data.Comp == comp])
-                pdf, axes = fastKDE.pdf(data)
-                plt.plot(axes, pdf, color=colors[idx], label=cond_labels[idx], **l_kws)
-            kwargs.setdefault("xlim", [min(data) - 100, max(data) + 100])
+            #for idx, condi in enumerate(cond_labels):
 
-        kwargs.setdefault("ylim", [0, 0.01])
-        kwargs.setdefault("xlabel", "Time (ms)")
-        kwargs.setdefault("ylabel", "PDF")
+            axes = sns.displot(data=self.res.data,
+                        x='RT',
+                        hue='condition',
+                        col='Error',
+                        kind='kde',
+                        palette=colors,
+                        )
+
+            for ax in axes.axes.flat:
+                ax.set_xticks(np.arange(0, 2500, 100))
+                ax.set_xticklabels(ax.get_xticks(), rotation=90)
+                ax.set_xlabel("Time (ms)")
+
+                ax.grid(True, axis='x');
+            
 
         _adjust_plt(**kwargs)
 
         if legend_position:
-            plt.legend(loc=legend_position)
+            plt.legend(loc=legend_position, ncol=2)
 
         if show:
             plt.show(block=False)
 
-    def cdf(
+    def cdf( # TODO
         self,
         show: bool = True,
         cond_labels: tuple = ("Compatible", "Incompatible"),

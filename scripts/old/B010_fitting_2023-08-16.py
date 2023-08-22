@@ -81,6 +81,8 @@ df["resp_comp"] = df["condition"].map(lambda x: conditions_mapping[x][1])
 # %%
 df.tail()
 
+df.to_csv('..\data\B010_pydmcVersion_150Cutoff_wo9-10-11-13-45-62.csv')
+
 
 # %%
 res_ob = Ob(df, n_caf=9, error_coding=(1,0))
@@ -95,7 +97,8 @@ Plot(res_ob).caf()
 # %%
 Plot(res_ob).delta()
 
-
+# %%
+Plot(res_ob).pdf()
 # ----------------- #
 
 
