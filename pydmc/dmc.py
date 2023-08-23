@@ -188,12 +188,12 @@ class Sim:
         self.conditions = [
             ("exHULU", 1, 1),
             ("exHCLU", 1, 1),
-            ("exHULC", -1, 1),
-            ("exHCLC", -1, 1),
+            ("exHULC", -1, -1),
+            ("exHCLC", -1, -1),
             ("anHULU", 1, 1),
             ("anHCLU", 1, -1),
-            ("anHULC", -1, -1),
-            ("anHCLC", -1, 1),
+            ("anHULC", -1, 1),
+            ("anHCLC", -1, -1),
         ]
 
         

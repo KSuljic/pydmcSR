@@ -64,11 +64,17 @@ prmsfit
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=10, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', maxiter=20, disp=True, seed=seed)
 
 
-# Best Parameters: Prms(sens_amp=29.62708004095449, sens_tau=231.9884182080549, sens_drc=0.6145516480773158, sens_bnds=81.24575319252381, sens_aa_shape=1.6356387824131913, sens_res_mean=138.48768180106424, sens_res_sd=56.96543849604238, resp_amp=31.262200562204143, resp_tau=231.60736107205798, resp_drc=0.36983104461375127, resp_bnds=58.26011880699383, resp_aa_shape=1.7676762844869327, resp_res_mean=127.34667997398945, resp_res_sd=39.19809057684322, sp_shape=3.1958983107817365, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-81.24575319252381, 81.24575319252381), sp_lim_resp=(-58.26011880699383, 58.26011880699383))
-# Best cost: 2.545066108399058
+# sens_amp: 5.8 sens_tau:201.9 sens_drc:0.46 sens_bnds:78.8 sens_aa_shape: 2.1 sens_res_mean: 113 sens_res_sd:14.3 resp_amp:28.7 resp_tau:189.1 resp_drc:0.82 resp_bnds:52.2 resp_aa_shape: 1.8 resp_res_mean: 159 resp_res_sd:56.5 sp_shape: 3.3 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.87
+# 2.87
+
+# sens_amp:12.5 sens_tau:131.9 sens_drc:0.45 sens_bnds:88.0 sens_aa_shape: 2.5 sens_res_mean: 149 sens_res_sd:44.3 resp_amp:30.9 resp_tau:169.7 resp_drc:0.92 resp_bnds:94.3 resp_aa_shape: 1.5 resp_res_mean:  63 resp_res_sd:44.1 sp_shape: 2.5 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.84
+# 2.84
+
+# sens_amp: 4.7 sens_tau:80.4 sens_drc:0.49 sens_bnds:98.7 sens_aa_shape: 1.7 sens_res_mean: 160 sens_res_sd:71.9 resp_amp:29.1 resp_tau:22.8 resp_drc:0.86 resp_bnds:57.3 resp_aa_shape: 2.0 resp_res_mean:  84 resp_res_sd:35.4 sp_shape: 3.0 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.78
+# 2.78 
 # ----------------- #
 
 
@@ -88,24 +94,18 @@ fit_vals_x
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=50, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=70, disp=True, seed=seed)
 
-# sens_amp:22.9 sens_tau:172.2 sens_drc:0.70 sens_bnds:68.5 sens_aa_shape: 1.8 sens_res_mean: 116 sens_res_sd:47.4 resp_amp:36.3 resp_tau:246.7 resp_drc:0.38 resp_bnds:59.5 resp_aa_shape: 1.4 resp_res_mean: 175 resp_res_sd:32.1 sp_shape: 2.7 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.44
-# 2.44
-
-# sens_amp:33.8 sens_tau:212.2 sens_drc:0.66 sens_bnds:72.3 sens_aa_shape: 2.0 sens_res_mean:  78 sens_res_sd:18.0 resp_amp:35.8 resp_tau:225.9 resp_drc:0.37 resp_bnds:65.8 resp_aa_shape: 1.4 resp_res_mean: 185 resp_res_sd:17.3 sp_shape: 2.3 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.39
-# 2.39
-# Best Parameters: Prms(sens_amp=33.76135167483847, sens_tau=212.23852121228498, sens_drc=0.663677458251879, sens_bnds=72.25296921868068, sens_aa_shape=2.0059233372334075, sens_res_mean=78.46839576832889, sens_res_sd=17.975469918185986, resp_amp=35.78299328536764, resp_tau=225.8759207866558, resp_drc=0.3709202395349319, resp_bnds=65.84273447650459, resp_aa_shape=1.3849635066316799, resp_res_mean=185.16443049263196, resp_res_sd=17.34761946850987, sp_shape=2.304085898281109, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-72.25296921868068, 72.25296921868068), sp_lim_resp=(-65.84273447650459, 65.84273447650459))
 
 
 # ----------------- #
 
 # %%
-fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
+fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit_adv, n_caf=9, search_grid=False) 
 fit_diff_adv.start_vals
 
 # %%
-fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=70, disp=True, seed=seed)
+fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=60, disp=True, seed=seed)
 
 
 # ----------------- #
@@ -121,6 +121,10 @@ prmsfit_adv = set_best_parameters(fit_diff_adv)
 fit_vals_x = fit_diff_adv.fit['x']
 fit_vals_x
 
+# Best Parameters: Prms(sens_amp=19.20885340290588, sens_tau=165.85223982491962, sens_drc=0.4730848156841636, sens_bnds=77.97299209408345, sens_aa_shape=2.018024089618249, sens_res_mean=92.19991174745076, sens_res_sd=22.96390204007147, resp_amp=39.90639062945641, resp_tau=141.72950391399982, resp_drc=0.38950050621674165, resp_bnds=57.28400867989853, resp_aa_shape=1.4354113748695227, resp_res_mean=153.54745300580504, resp_res_sd=12.449202040418001, sp_shape=2.8805178957173716, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-77.97299209408345, 77.97299209408345), sp_lim_resp=(-57.28400867989853, 57.28400867989853))
+# Best cost: 2.3616139756573293
+
+
 # ----------------- #
 
 # %%
@@ -128,7 +132,7 @@ fit_nelder = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=
 fit_nelder.start_vals
 
 # %%
-fit_nelder.fit_data(maxiter=300, disp=True)
+fit_nelder.fit_data(maxiter=200, disp=True)
 
 
 # %%
@@ -284,23 +288,26 @@ def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, sens
 
     plt.show()
 
+    Plot(sim).caf()
+    Plot(sim).delta()
+
 # %%
 # Create widgets for each parameter in Prms
-sens_amp_slider = widgets.FloatSlider(value=25, min=0, max=100, step=0.1, description='sens_amp:')
-sens_tau_slider = widgets.FloatSlider(value=150, min=0, max=300, step=0.1, description='sens_tau:')
+sens_amp_slider = widgets.FloatSlider(value=50, min=0, max=100, step=0.1, description='sens_amp:')
+sens_tau_slider = widgets.FloatSlider(value=200, min=0, max=300, step=1, description='sens_tau:')
 sens_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='sens_drc:')
-sens_bnds_slider = widgets.FloatSlider(value=72.25, min=0, max=200, step=0.1, description='sens_bnds:')
-sens_aa_shape_slider = widgets.FloatSlider(value=2.00, min=0, max=10, step=0.1, description='sens_aa_shape:')
-sens_res_mean_slider = widgets.FloatSlider(value=78.5, min=0, max=200, step=0.1, description='sens_res_mean:')
-sens_res_sd_slider = widgets.FloatSlider(value=18, min=0, max=100, step=0.1, description='sens_res_sd:')
-resp_amp_slider = widgets.FloatSlider(value=24, min=0, max=100, step=0.1, description='resp_amp:')
-resp_tau_slider = widgets.FloatSlider(value=200, min=0, max=300, step=0.1, description='resp_tau:')
-resp_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='resp_drc:')
-resp_bnds_slider = widgets.FloatSlider(value=80, min=0, max=200, step=0.1, description='resp_bnds:')
-resp_aa_shape_slider = widgets.FloatSlider(value=1.5, min=0, max=10, step=0.1, description='resp_aa_shape:')
-resp_res_mean_slider = widgets.FloatSlider(value=150, min=0, max=200, step=0.1, description='resp_res_mean:')
-resp_res_sd_slider = widgets.FloatSlider(value=17.35, min=0, max=100, step=0.1, description='resp_res_sd:')
-sp_shape_slider = widgets.FloatSlider(value=2.3, min=0, max=10, step=0.1, description='sp_shape:')
+sens_bnds_slider = widgets.FloatSlider(value=50, min=0, max=200, step=0.1, description='sens_bnds:')
+sens_aa_shape_slider = widgets.FloatSlider(value=1.5, min=0, max=10, step=0.1, description='sens_aa_shape:')
+sens_res_mean_slider = widgets.FloatSlider(value=20, min=0, max=200, step=0.1, description='sens_res_mean:')
+sens_res_sd_slider = widgets.FloatSlider(value=23, min=0, max=100, step=0.1, description='sens_res_sd:')
+resp_amp_slider = widgets.FloatSlider(value=50, min=0, max=100, step=0.1, description='resp_amp:')
+resp_tau_slider = widgets.FloatSlider(value=200, min=0, max=300, step=1, description='resp_tau:')
+resp_drc_slider = widgets.FloatSlider(value=0.1, min=0, max=1, step=0.01, description='resp_drc:')
+resp_bnds_slider = widgets.FloatSlider(value=40, min=0, max=200, step=0.1, description='resp_bnds:')
+resp_aa_shape_slider = widgets.FloatSlider(value=2.5, min=0, max=10, step=0.1, description='resp_aa_shape:')
+resp_res_mean_slider = widgets.FloatSlider(value=300, min=0, max=500, step=0.1, description='resp_res_mean:')
+resp_res_sd_slider = widgets.FloatSlider(value=18.5, min=0, max=100, step=0.1, description='resp_res_sd:')
+sp_shape_slider = widgets.FloatSlider(value=2, min=0, max=10, step=0.1, description='sp_shape:')
 sigma_slider = widgets.FloatSlider(value=4.0, min=0, max=10, step=0.1, description='sigma:')
 sp_bias_slider = widgets.FloatSlider(value=0.0, min=-10, max=10, step=0.1, description='sp_bias:')
 dr_shape_slider = widgets.FloatSlider(value=3.0, min=0, max=10, step=0.1, description='dr_shape:')
@@ -390,7 +397,7 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # ----------------- #
 
 # %%
-sim = Sim(fit_diff.best_prms_out, n_caf=9)
+sim = Sim(fit_diff_adv.best_prms_out, n_caf=9)
 Fit.calculate_cost_value_rmse(sim, res_ob)
 
 # %%
@@ -407,6 +414,7 @@ widget_function(**filtered_args)
 Plot(res_ob).caf()
 Plot(res_ob).delta()
 
+# %%
 Plot(sim).caf()
 Plot(sim).delta()
 
