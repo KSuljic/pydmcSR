@@ -73,11 +73,11 @@ class Prms:
     """
 
     # Sensory Process Parameters
-    sens_amp: float = 20
-    sens_tau: float = 30
-    sens_drc: float = 0.5
-    sens_bnds: float = 75
-    sens_aa_shape: float = 2
+    sens_amp: float = 20 # Amplitude of automatic process
+    sens_tau: float = 30 # tau of automatic process
+    sens_drc: float = 0.5 # drc drift rate of controlled processes
+    sens_bnds: float = 75 # boundaries
+    sens_aa_shape: float = 2 # shape parameter of automatic activation
     sens_res_mean: float = 150
     sens_res_sd: float = 30
 
@@ -250,17 +250,17 @@ class Sim:
         for condition_name, sens_comp, resp_comp in self.conditions:
 
             # Sensory Process (SP)
-            sens_drc = (
+            sens_dr_auto = (
                 sens_comp
-                * self.sens_eq4 # Expected automatic evidence accumulation trajectory (https://link.springer.com/article/10.3758/s13423-023-02288-0)
+                * self.sens_eq4 # Mean Activation time E(X(t)) - Expected automatic evidence accumulation trajectory (https://link.springer.com/article/10.3758/s13423-023-02288-0)
                 * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
             ) # corresponding automatic drift rate
-            sens_dr, sens_sp = self._sens_dr(), self._sp()
+            sens_drc, sens_sp = self._sens_drc(), self._sp()
 
             sens_data = _run_simulation(
-                sens_drc,
+                sens_dr_auto,
                 sens_sp,
-                sens_dr,
+                sens_drc,
                 self.prms.t_max,
                 self.prms.sigma,
                 self.prms.res_dist,
@@ -271,17 +271,17 @@ class Sim:
             )
 
             # Response Process (RP)
-            resp_drc = (
+            resp_dr_auto = (
                 resp_comp
                 * self.resp_eq4
                 * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
             )
-            resp_dr, resp_sp = self._resp_dr(), self._sp()
+            resp_drc, resp_sp = self._resp_drc(), self._sp()
 
             resp_data = _run_simulation(
-                resp_drc,
+                resp_dr_auto,
                 resp_sp,
-                resp_dr,
+                resp_drc,
                 self.prms.t_max,
                 self.prms.sigma,
                 self.prms.res_dist,
@@ -316,20 +316,20 @@ class Sim:
 
         for condition_name, sens_comp, resp_comp in self.conditions:
 
-            # Calculates the sensory drc value using the equation sens_drcs provided.
+            # Calculates the sensory drc value using the equation provided.
             # Sensory Process (SP)
-            sens_drc = (
+            sens_dr_auto = (
                 sens_comp
                 * self.sens_eq4
                 * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
             )
             # Calculates the sensory drift rate and starting point.
-            sens_dr, sens_sp = self._sens_dr(), self._sp()
+            sens_drc, sens_sp = self._sens_drc(), self._sp()
 
             sens_activation, sens_trials, sens_data = _run_simulation_full(
-                sens_drc,
+                sens_dr_auto,
                 sens_sp,
-                sens_dr,
+                sens_drc,
                 self.prms.t_max,
                 self.prms.sigma,
                 self.prms.res_dist,
@@ -346,17 +346,17 @@ class Sim:
 
             # Calculates the response drc value.
             # Response Process (RP)
-            resp_drc = (
+            resp_dr_auto = (
                 resp_comp
                 * self.resp_eq4
                 * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
             )
-            resp_dr, resp_sp = self._resp_dr(), self._sp()
+            resp_drc, resp_sp = self._resp_drc(), self._sp()
 
             resp_activation, resp_trials, resp_data = _run_simulation_full(
-                resp_drc,
+                resp_dr_auto,
                 resp_sp,
-                resp_dr,
+                resp_drc,
                 self.prms.t_max,
                 self.prms.sigma,
                 self.prms.res_dist,
@@ -567,8 +567,8 @@ class Sim:
             )
             '''
         
-    def _sens_dr(self) -> np.ndarray:
-        '''Returns sensory drift rates based on the specified distribution.'''
+    def _sens_drc(self) -> np.ndarray:
+        '''Controlled Drift Rate: Variable drift rate? Returns sensory drift rates based on the specified distribution.'''
         if self.prms.dr_dist == 0:
             # constant between trial drift rate
             return np.ones(self.n_trls) * self.prms.sens_drc
@@ -579,8 +579,8 @@ class Sim:
             # between trial variablity in drift rate from uniform
             return np.random.uniform(self.prms.sens_dr_lim[0], self.prms.sens_dr_lim[1], self.n_trls)
 
-    def _resp_dr(self) -> np.ndarray:
-        '''Returns response drift rates based on the specified distribution.'''
+    def _resp_drc(self) -> np.ndarray:
+        '''Controlled Drift Rate: Variable drift rate? Returns response drift rates based on the specified distribution.'''
         if self.prms.dr_dist == 0:
             return np.ones(self.n_trls) * self.prms.resp_drc
         elif self.prms.dr_dist == 1:
@@ -591,6 +591,7 @@ class Sim:
 
 
     def _sp(self) -> np.ndarray:
+        '''Variable starting point?'''
         if self.prms.sp_dist == 0:
             # constant between trial starting point
             return np.zeros(self.n_trls) + self.prms.sp_bias
@@ -620,7 +621,7 @@ def _run_simulation(
 
 @jit(nopython=True, parallel=True)
 def _run_simulation(
-    drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None
+    dr_auto, sp, dr_con, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None
 ):
     # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
@@ -645,7 +646,8 @@ def _run_simulation(
 
         for tp in range(0, t_max):
 
-            trl_xt += drc[tp] + dr[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+            # auto + controlled + wiener
+            trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
             
             # Determines the RT and outcome based on the accumulated evidence and boundary.
             if np.abs(trl_xt) > bnds:
@@ -659,9 +661,9 @@ def _run_simulation(
 
 @jit(nopython=True, parallel=True)
 def _run_simulation_full(
-    drc,
+    dr_auto,
     sp,
-    dr,
+    dr_con,
     t_max,
     sigma,
     res_dist_type,
@@ -690,7 +692,7 @@ def _run_simulation_full(
 
         # Generates random numbers and calculates evidence accumulation as a Wiener process.
         rand_nums = np.random.randn(1, t_max) 
-        xt = drc + dr[trl] + (sigma * rand_nums) # evidence accumulation can be modeled as a single combined Wiener process
+        xt = dr_auto + dr_con[trl] + (sigma * rand_nums) # evidence accumulation can be modeled as a single combined Wiener process
 
         # Adjusts the starting point.
         xt[0] += sp[trl] #
@@ -1128,21 +1130,21 @@ class PrmsFit:
     '''
     # default, min, max, free fit, free grid
     # Sensory Process Parameters
-    sens_amp: tuple = (20, 0, 40, True, False)
+    sens_amp: tuple = (20, 0, 50, True, False)
     sens_tau: tuple = (150, 5, 300, True, True)
     sens_drc: tuple = (0.5, 0.1, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
-    sens_aa_shape: tuple = (2, 1, 3, True, False)
-    sens_res_mean: tuple = (150, 50, 400, True, False)
+    sens_aa_shape: tuple = (2, 1, 6, True, False)
+    sens_res_mean: tuple = (150, 50, 300, True, False)
     sens_res_sd: tuple = (30, 5, 100, True, False)
 
     # Response Process Parameters
-    resp_amp: tuple = (20, 0, 40, True, False)
+    resp_amp: tuple = (20, 0, 50, True, False)
     resp_tau: tuple = (150, 5, 300, True, True)
     resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
-    resp_aa_shape: tuple = (2, 1, 3, True, False)
-    resp_res_mean: tuple = (150, 50, 400, True, False)
+    resp_aa_shape: tuple = (2, 1, 6, True, False)
+    resp_res_mean: tuple = (150, 50, 300, True, False)
     resp_res_sd: tuple = (30, 5, 100, True, False)
 
     # Shared Parameters

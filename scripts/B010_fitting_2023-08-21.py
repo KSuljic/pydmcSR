@@ -96,7 +96,8 @@ fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 # %%
 fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=70, disp=True, seed=seed)
 
-
+#sens_amp: 6.0 sens_tau:128.2 sens_drc:0.39 sens_bnds:84.9 sens_aa_shape: 2.7 sens_res_mean: 153 sens_res_sd:54.3 resp_amp:28.4 resp_tau:71.5 resp_drc:0.89 resp_bnds:54.8 resp_aa_shape: 1.8 resp_res_mean:  89 resp_res_sd:20.6 sp_shape: 3.5 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.62
+# 2.62
 
 # ----------------- #
 
@@ -149,29 +150,43 @@ fit_vals_x
 
 
 # %%
-def activation(tim, amp, tau, aa_shape, comp):
+def activation(tim, amp, tau, aa_shape, drc, comp):
+
+    dr_con = (drc * tim)
+
     eq4 = (
         amp
         * np.exp(-tim / tau)
         * (np.exp(1) * tim / (aa_shape - 1) / tau)
         ** (aa_shape - 1)
-    )
+    ) # Expected automatic evidence accumulation trajectory
     
-    drc = (
+    dr_auto = (
         comp
         * eq4
         * ((aa_shape - 1) / tim - 1 / tau)
-    )
+    ) # corresponding automatic drift rate
+
+    super_comp = (eq4 + dr_con)
+    super_incomp = (-eq4 + dr_con)
     
-    return drc, eq4
+    return dr_con, eq4, dr_auto, super_comp, super_incomp
 
 
 def plot_activation(tim, activation, title):
     plt.figure(figsize=(10,6))
-    plt.plot(tim, activation[0], color='black')
-    plt.plot(tim, activation[1])
+    plt.plot(tim, activation[0], color='black', label='controlled')
+    plt.plot(tim, activation[1], color='green', label='dr_auto, compatible')
+    plt.plot(tim, -activation[1], color='red', label='dr_auto, compatible')
+    plt.plot(tim, activation[2], color='pink', label='automatic drift rate')
+    plt.plot(tim, activation[3], color='darkgreen', label='super_comp')
+    plt.plot(tim, activation[4], color='darkred', label='super_incomp')
+
+
+
     plt.title(title)
     plt.xlabel('Time (ms)')
+    plt.ylim((-100, 100))
     plt.ylabel('Activation')
     plt.grid(True)
     plt.show()
@@ -180,9 +195,9 @@ def plot_activation(tim, activation, title):
 
 # %%
 # Example usage
-tim = np.linspace(0.01, 2000, 2000)  # This is just an example time range; you might want to adjust this
-plot_activation(tim, activation(tim, 33.8, 212, 2, 10), 'Sensory Activation')
-plot_activation(tim, activation(tim, 35.8, 225, 1.38, 10), 'Response Activation')
+tim = np.linspace(0.01, 1000, 2000)  # This is just an example time range; you might want to adjust this
+plot_activation(tim, activation(tim, 200, 30, 2, 0.5, -1), 'Sensory Activation')
+plot_activation(tim, activation(tim, 50, 100, 3, 0.03, 100), 'Response Activation')
 
 
 # %%
@@ -293,21 +308,23 @@ def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, sens
 
 # %%
 # Create widgets for each parameter in Prms
-sens_amp_slider = widgets.FloatSlider(value=50, min=0, max=100, step=0.1, description='sens_amp:')
+sens_amp_slider = widgets.FloatSlider(value=40, min=0, max=100, step=0.1, description='sens_amp:')
 sens_tau_slider = widgets.FloatSlider(value=200, min=0, max=300, step=1, description='sens_tau:')
-sens_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='sens_drc:')
-sens_bnds_slider = widgets.FloatSlider(value=50, min=0, max=200, step=0.1, description='sens_bnds:')
-sens_aa_shape_slider = widgets.FloatSlider(value=1.5, min=0, max=10, step=0.1, description='sens_aa_shape:')
-sens_res_mean_slider = widgets.FloatSlider(value=20, min=0, max=200, step=0.1, description='sens_res_mean:')
-sens_res_sd_slider = widgets.FloatSlider(value=23, min=0, max=100, step=0.1, description='sens_res_sd:')
-resp_amp_slider = widgets.FloatSlider(value=50, min=0, max=100, step=0.1, description='resp_amp:')
-resp_tau_slider = widgets.FloatSlider(value=200, min=0, max=300, step=1, description='resp_tau:')
-resp_drc_slider = widgets.FloatSlider(value=0.1, min=0, max=1, step=0.01, description='resp_drc:')
-resp_bnds_slider = widgets.FloatSlider(value=40, min=0, max=200, step=0.1, description='resp_bnds:')
-resp_aa_shape_slider = widgets.FloatSlider(value=2.5, min=0, max=10, step=0.1, description='resp_aa_shape:')
-resp_res_mean_slider = widgets.FloatSlider(value=300, min=0, max=500, step=0.1, description='resp_res_mean:')
-resp_res_sd_slider = widgets.FloatSlider(value=18.5, min=0, max=100, step=0.1, description='resp_res_sd:')
-sp_shape_slider = widgets.FloatSlider(value=2, min=0, max=10, step=0.1, description='sp_shape:')
+sens_drc_slider = widgets.FloatSlider(value=0.3, min=0, max=1, step=0.01, description='sens_drc:')
+sens_bnds_slider = widgets.FloatSlider(value=80, min=0, max=200, step=0.1, description='sens_bnds:')
+sens_aa_shape_slider = widgets.FloatSlider(value=2, min=0, max=10, step=0.1, description='sens_aa_shape:')
+sens_res_mean_slider = widgets.FloatSlider(value=40, min=0, max=200, step=0.1, description='sens_res_mean:')
+sens_res_sd_slider = widgets.FloatSlider(value=21, min=0, max=100, step=0.1, description='sens_res_sd:')
+
+resp_amp_slider = widgets.FloatSlider(value=100, min=0, max=100, step=0.1, description='resp_amp:')
+resp_tau_slider = widgets.FloatSlider(value=150, min=0, max=300, step=1, description='resp_tau:')
+resp_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='resp_drc:')
+resp_bnds_slider = widgets.FloatSlider(value=100, min=0, max=200, step=0.1, description='resp_bnds:')
+resp_aa_shape_slider = widgets.FloatSlider(value=3, min=0, max=10, step=0.1, description='resp_aa_shape:')
+resp_res_mean_slider = widgets.FloatSlider(value=80, min=0, max=500, step=0.1, description='resp_res_mean:')
+resp_res_sd_slider = widgets.FloatSlider(value=10, min=0, max=100, step=0.1, description='resp_res_sd:')
+
+sp_shape_slider = widgets.FloatSlider(value=4, min=0, max=10, step=0.1, description='sp_shape:')
 sigma_slider = widgets.FloatSlider(value=4.0, min=0, max=10, step=0.1, description='sigma:')
 sp_bias_slider = widgets.FloatSlider(value=0.0, min=-10, max=10, step=0.1, description='sp_bias:')
 dr_shape_slider = widgets.FloatSlider(value=3.0, min=0, max=10, step=0.1, description='dr_shape:')
@@ -403,7 +420,7 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # %%
 import inspect
 
-para_dict = fit_nelder.best_prms_out.__dict__
+para_dict = fit_diff.best_prms_out.__dict__
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 
