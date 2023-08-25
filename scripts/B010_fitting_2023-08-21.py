@@ -64,7 +64,7 @@ prmsfit
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=20, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', maxiter=30, disp=True, seed=seed)
 
 
 # sens_amp: 5.8 sens_tau:201.9 sens_drc:0.46 sens_bnds:78.8 sens_aa_shape: 2.1 sens_res_mean: 113 sens_res_sd:14.3 resp_amp:28.7 resp_tau:189.1 resp_drc:0.82 resp_bnds:52.2 resp_aa_shape: 1.8 resp_res_mean: 159 resp_res_sd:56.5 sp_shape: 3.3 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.87
@@ -102,11 +102,12 @@ fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=70, disp=True
 # ----------------- #
 
 # %%
-fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit_adv, n_caf=9, search_grid=False) 
+fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
 fit_diff_adv.start_vals
 
 # %%
-fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=60, disp=True, seed=seed)
+# fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=60, disp=True, seed=seed)
+fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, maxiter=30, disp=True, seed=seed)
 
 
 # ----------------- #
@@ -125,15 +126,16 @@ fit_vals_x
 # Best Parameters: Prms(sens_amp=19.20885340290588, sens_tau=165.85223982491962, sens_drc=0.4730848156841636, sens_bnds=77.97299209408345, sens_aa_shape=2.018024089618249, sens_res_mean=92.19991174745076, sens_res_sd=22.96390204007147, resp_amp=39.90639062945641, resp_tau=141.72950391399982, resp_drc=0.38950050621674165, resp_bnds=57.28400867989853, resp_aa_shape=1.4354113748695227, resp_res_mean=153.54745300580504, resp_res_sd=12.449202040418001, sp_shape=2.8805178957173716, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-77.97299209408345, 77.97299209408345), sp_lim_resp=(-57.28400867989853, 57.28400867989853))
 # Best cost: 2.3616139756573293
 
-
+# Prms(sens_amp=31.548172023227444, sens_tau=103.05265775452429, sens_drc=0.681503332423484, sens_bnds=67.41466283935907, sens_aa_shape=1.2973868891908833, sens_res_mean=88.7467731111973, sens_res_sd=10.483958752969002, resp_amp=44.31823917665024, resp_tau=36.27356063321143, resp_drc=0.30592880998664884, resp_bnds=91.31821857596368, resp_aa_shape=1.921883910034707, resp_res_mean=175.50203117507124, resp_res_sd=84.69724860156873, resp_amp_ana=48.248678508946824, resp_tau_ana=266.19490748860835, resp_aa_shape_ana=1.5902979548578722, sp_shape=3.623193780450819, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-67.41466283935907, 67.41466283935907), sp_lim_resp=(-91.31821857596368, 91.31821857596368))
+# 1.6069973724887472
 # ----------------- #
 
 # %%
-fit_nelder = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
+fit_nelder = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=True) 
 fit_nelder.start_vals
 
 # %%
-fit_nelder.fit_data(maxiter=200, disp=True)
+fit_nelder.fit_data(maxiter=500, disp=True)
 
 
 # %%
@@ -267,12 +269,14 @@ for ax in axes.axes.flat:
 # Define the widget function
 def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, sens_res_mean, sens_res_sd,
                     resp_amp, resp_tau, resp_drc, resp_bnds, resp_aa_shape, resp_res_mean, resp_res_sd,
+                    resp_amp_ana, resp_tau_ana, resp_aa_shape_ana,
                     sp_shape, sigma, sp_bias, dr_shape):
     
     para = Prms(
         sens_amp=sens_amp, sens_tau=sens_tau, sens_drc=sens_drc, sens_bnds=sens_bnds, sens_aa_shape=sens_aa_shape,
         sens_res_mean=sens_res_mean, sens_res_sd=sens_res_sd, resp_amp=resp_amp, resp_tau=resp_tau, resp_drc=resp_drc,
         resp_bnds=resp_bnds, resp_aa_shape=resp_aa_shape, resp_res_mean=resp_res_mean, resp_res_sd=resp_res_sd,
+        resp_amp_ana=resp_amp_ana, resp_tau_ana=resp_tau_ana, resp_aa_shape_ana=resp_aa_shape_ana,
         sp_shape=sp_shape, sigma=sigma, sp_bias=sp_bias, dr_shape=dr_shape
     )
 
@@ -414,13 +418,13 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # ----------------- #
 
 # %%
-sim = Sim(fit_diff_adv.best_prms_out, n_caf=9)
+sim = Sim(fit_diff.best_prms_out, n_caf=9)
 Fit.calculate_cost_value_rmse(sim, res_ob)
 
 # %%
 import inspect
 
-para_dict = fit_diff.best_prms_out.__dict__
+para_dict = fit_diff_adv.best_prms_out.__dict__
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 
@@ -434,6 +438,10 @@ Plot(res_ob).delta()
 # %%
 Plot(sim).caf()
 Plot(sim).delta()
+
+
+
+
 
 
 

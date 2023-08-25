@@ -90,6 +90,12 @@ class Prms:
     resp_res_mean: float = 150
     resp_res_sd: float = 30
 
+    # anatomical response conflict
+    resp_amp_ana: float = 20
+    resp_tau_ana: float = 30
+    resp_aa_shape_ana: float = 2
+
+
     # Shared Parameters
     sp_shape: float = 3
     sigma: float = 4
@@ -184,16 +190,16 @@ class Sim:
         self.delta = None
         self.plot: Plot = Plot(self)
 
-        # Coding of Conditions of B010 (condition, sens_comp, resp_comp)
+        # Coding of Conditions of B010 (condition, sens_comp, resp_comp, ana_comp)
         self.conditions = [
-            ("exHULU", 1, 1),
-            ("exHCLU", 1, 1),
-            ("exHULC", -1, -1),
-            ("exHCLC", -1, -1),
-            ("anHULU", 1, 1),
-            ("anHCLU", 1, -1),
-            ("anHULC", -1, 1),
-            ("anHCLC", -1, -1),
+            ("exHULU", 1, 1, 1),
+            ("exHCLU", 1, 1, -1),
+            ("exHULC", -1, -1, -1),
+            ("exHCLC", -1, -1, 1),
+            ("anHULU", 1, 1, 1),
+            ("anHCLU", 1, -1, 1),
+            ("anHULC", -1, 1, 1),
+            ("anHCLC", -1, -1, 1),
         ]
 
         
@@ -231,6 +237,13 @@ class Sim:
             ** (self.prms.resp_aa_shape - 1)
         )
 
+        self.resp_eq4_ana = (
+            self.prms.resp_amp_ana
+            * np.exp(-self.tim / self.prms.resp_tau_ana)
+            * (np.exp(1) * self.tim / (self.prms.resp_aa_shape_ana - 1) / self.prms.resp_tau_ana)
+            ** (self.prms.resp_aa_shape_ana - 1)
+        )
+
 
 
         if self.full_data:
@@ -247,7 +260,7 @@ class Sim:
         self.data = {}
         self.SR_data = {}
 
-        for condition_name, sens_comp, resp_comp in self.conditions:
+        for condition_name, sens_comp, resp_comp, ana_comp in self.conditions:
 
             # Sensory Process (SP)
             sens_dr_auto = (
@@ -276,6 +289,16 @@ class Sim:
                 * self.resp_eq4
                 * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
             )
+
+
+            resp_dr_auto2 = (
+                ana_comp
+                * self.resp_eq4_ana
+                * ((self.prms.resp_aa_shape_ana - 1) / self.tim - 1 / self.prms.resp_tau_ana)
+            )
+
+            
+
             resp_drc, resp_sp = self._resp_drc(), self._sp()
 
             resp_data = _run_simulation(
@@ -289,7 +312,8 @@ class Sim:
                 self.prms.resp_res_sd,
                 self.prms.resp_bnds,
                 self.n_trls,
-                sens_data
+                sens_data,
+                resp_dr_auto2,
             )
 
            # Combine RTs from sensory and response processes
@@ -621,7 +645,7 @@ def _run_simulation(
 
 @jit(nopython=True, parallel=True)
 def _run_simulation(
-    dr_auto, sp, dr_con, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None
+    dr_auto, sp, dr_con, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None, dr_auto2=None
 ):
     # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
@@ -646,9 +670,14 @@ def _run_simulation(
 
         for tp in range(0, t_max):
 
-            # auto + controlled + wiener
-            trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
-            
+            if dr_auto2 is not None:
+                # auto + auto2 + controlled + wiener
+                trl_xt += dr_auto[tp] + dr_auto2[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+                
+            else:
+                # auto + controlled + wiener
+                trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+                
             # Determines the RT and outcome based on the accumulated evidence and boundary.
             if np.abs(trl_xt) > bnds:
                 data[0, trl] = tp + max(0, res_dist[trl])
@@ -1134,7 +1163,7 @@ class PrmsFit:
     sens_tau: tuple = (150, 5, 300, True, True)
     sens_drc: tuple = (0.5, 0.1, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
-    sens_aa_shape: tuple = (2, 1, 6, True, False)
+    sens_aa_shape: tuple = (2, 1, 5, True, False)
     sens_res_mean: tuple = (150, 50, 300, True, False)
     sens_res_sd: tuple = (30, 5, 100, True, False)
 
@@ -1143,9 +1172,13 @@ class PrmsFit:
     resp_tau: tuple = (150, 5, 300, True, True)
     resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
-    resp_aa_shape: tuple = (2, 1, 6, True, False)
+    resp_aa_shape: tuple = (2, 1, 5, True, False)
     resp_res_mean: tuple = (150, 50, 300, True, False)
     resp_res_sd: tuple = (30, 5, 100, True, False)
+
+    resp_amp_ana: tuple = (20, 0, 50, True, False)
+    resp_tau_ana: tuple = (150, 5, 300, True, True)
+    resp_aa_shape_ana: tuple = (2, 1, 5, True, False)
 
     # Shared Parameters
     sp_shape: tuple = (3, 2, 4, True, False)
@@ -1341,6 +1374,11 @@ class Fit:
             f"resp_aa_shape:{self.res_th.prms.resp_aa_shape:4.1f}",
             f"resp_res_mean:{self.res_th.prms.resp_res_mean:4.0f}",
             f"resp_res_sd:{self.res_th.prms.resp_res_sd:4.1f}",
+
+            f"resp_amp_ana:{self.res_th.prms.resp_amp_ana:4.1f}",
+            f"resp_tau_ana:{self.res_th.prms.resp_tau_ana:4.1f}",
+            f"resp_aa_shape_ana:{self.res_th.prms.resp_aa_shape_ana:4.1f}",
+
             # Shared Parameters
             f"sp_shape:{self.res_th.prms.sp_shape:4.1f}",
             f"sigma:{self.res_th.prms.sigma:4.1f}",
