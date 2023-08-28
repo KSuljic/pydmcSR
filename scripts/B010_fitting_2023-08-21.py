@@ -59,6 +59,13 @@ prmsfit.set_random_start_values(seed_value=seed)
 prmsfit
 
 
+# %%
+prmsfit = PrmsFit()
+prmsfit.set_start_values(sens_amp=31.548172023227444, sens_tau=103.05265775452429, sens_drc=0.681503332423484, sens_bnds=67.41466283935907, sens_aa_shape=1.2973868891908833, sens_res_mean=88.7467731111973, sens_res_sd=10.483958752969002, resp_amp=44.31823917665024, resp_tau=36.27356063321143, resp_drc=0.30592880998664884, resp_bnds=91.31821857596368, resp_aa_shape=1.921883910034707, resp_res_mean=175.50203117507124, resp_res_sd=84.69724860156873, resp_amp_ana=48.248678508946824, resp_tau_ana=266.19490748860835, resp_aa_shape_ana=1.5902979548578722, sp_shape=3.623193780450819, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-67.41466283935907, 67.41466283935907), sp_lim_resp=(-91.31821857596368, 91.31821857596368))
+fit_vals_x = prmsfit.array()
+
+
+
 # -------------- #
 # %%
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
@@ -67,14 +74,6 @@ fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 fit_diff.fit_data('differential_evolution', maxiter=30, disp=True, seed=seed)
 
 
-# sens_amp: 5.8 sens_tau:201.9 sens_drc:0.46 sens_bnds:78.8 sens_aa_shape: 2.1 sens_res_mean: 113 sens_res_sd:14.3 resp_amp:28.7 resp_tau:189.1 resp_drc:0.82 resp_bnds:52.2 resp_aa_shape: 1.8 resp_res_mean: 159 resp_res_sd:56.5 sp_shape: 3.3 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.87
-# 2.87
-
-# sens_amp:12.5 sens_tau:131.9 sens_drc:0.45 sens_bnds:88.0 sens_aa_shape: 2.5 sens_res_mean: 149 sens_res_sd:44.3 resp_amp:30.9 resp_tau:169.7 resp_drc:0.92 resp_bnds:94.3 resp_aa_shape: 1.5 resp_res_mean:  63 resp_res_sd:44.1 sp_shape: 2.5 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.84
-# 2.84
-
-# sens_amp: 4.7 sens_tau:80.4 sens_drc:0.49 sens_bnds:98.7 sens_aa_shape: 1.7 sens_res_mean: 160 sens_res_sd:71.9 resp_amp:29.1 resp_tau:22.8 resp_drc:0.86 resp_bnds:57.3 resp_aa_shape: 2.0 resp_res_mean:  84 resp_res_sd:35.4 sp_shape: 3.0 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.78
-# 2.78 
 # ----------------- #
 
 
@@ -96,8 +95,14 @@ fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 # %%
 fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=70, disp=True, seed=seed)
 
-#sens_amp: 6.0 sens_tau:128.2 sens_drc:0.39 sens_bnds:84.9 sens_aa_shape: 2.7 sens_res_mean: 153 sens_res_sd:54.3 resp_amp:28.4 resp_tau:71.5 resp_drc:0.89 resp_bnds:54.8 resp_aa_shape: 1.8 resp_res_mean:  89 resp_res_sd:20.6 sp_shape: 3.5 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=2.62
-# 2.62
+# sens_amp:28.2 sens_tau:55.0 sens_drc:0.73 sens_bnds:70.3 sens_aa_shape: 2.1 sens_res_mean:  80 sens_res_sd: 6.9 resp_amp:47.2 resp_tau:37.8 resp_drc:0.29 resp_bnds:92.0 resp_aa_shape: 2.0 resp_res_mean: 158 resp_res_sd:82.8 resp_amp_ana:44.4 resp_tau_ana:258.7 resp_aa_shape_ana: 1.7 sp_shape: 3.8 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=1.63
+# 1.63
+
+# sens_amp:27.0 sens_tau:90.7 sens_drc:0.64 sens_bnds:65.8 sens_aa_shape: 1.3 sens_res_mean:  87 sens_res_sd:20.2 resp_amp:41.7 resp_tau:40.2 resp_drc:0.32 resp_bnds:95.2 resp_aa_shape: 2.0 resp_res_mean: 172 resp_res_sd:74.5 resp_amp_ana:47.5 resp_tau_ana:259.1 resp_aa_shape_ana: 1.7 sp_shape: 3.3 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=1.62
+# 1.62
+
+# sens_amp:35.5 sens_tau:57.5 sens_drc:0.76 sens_bnds:63.6 sens_aa_shape: 1.3 sens_res_mean:  67 sens_res_sd:97.8 resp_amp:46.2 resp_tau:27.1 resp_drc:0.31 resp_bnds:98.2 resp_aa_shape: 2.3 resp_res_mean: 186 resp_res_sd:13.2 resp_amp_ana:49.8 resp_tau_ana:297.4 resp_aa_shape_ana: 1.5 sp_shape: 3.6 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=1.59
+# 1.59
 
 # ----------------- #
 

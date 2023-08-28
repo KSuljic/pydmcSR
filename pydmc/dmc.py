@@ -78,8 +78,10 @@ class Prms:
     sens_drc: float = 0.5 # drc drift rate of controlled processes
     sens_bnds: float = 75 # boundaries
     sens_aa_shape: float = 2 # shape parameter of automatic activation
-    sens_res_mean: float = 150
-    sens_res_sd: float = 30
+
+    sp_lim_sens: tuple = (-75, 75)     # New attributes for sensory and response starting point limits
+
+
 
     # Response Process Parameters
     resp_amp: float = 20
@@ -87,19 +89,22 @@ class Prms:
     resp_drc: float = 0.5
     resp_bnds: float = 75
     resp_aa_shape: float = 2
-    resp_res_mean: float = 150
-    resp_res_sd: float = 30
-
+ 
     # anatomical response conflict
     resp_amp_ana: float = 20
     resp_tau_ana: float = 30
     resp_aa_shape_ana: float = 2
 
+    sp_lim_resp: tuple = (-75, 75)     # New attributes for sensory and response starting point limits
+
 
     # Shared Parameters
+    res_dist: int = 1
+    res_mean: float = 150
+    res_sd: float = 30
+
     sp_shape: float = 3
     sigma: float = 4
-    res_dist: int = 1
     t_max: int = 2000
     sp_dist: int = 0
     sp_lim: tuple = (-75, 75)
@@ -108,9 +113,6 @@ class Prms:
     dr_lim: tuple = (0.1, 0.7)
     dr_shape: float = 3
 
-    # New attributes for sensory and response starting point limits
-    sp_lim_sens: tuple = (-75, 75)
-    sp_lim_resp: tuple = (-75, 75)
 
 
 class Sim:
@@ -276,9 +278,9 @@ class Sim:
                 sens_drc,
                 self.prms.t_max,
                 self.prms.sigma,
-                self.prms.res_dist,
-                self.prms.sens_res_mean,
-                self.prms.sens_res_sd,
+                #self.prms.res_dist,
+                #self.prms.sens_res_mean,
+                #self.prms.sens_res_sd,
                 self.prms.sens_bnds,
                 self.n_trls
             )
@@ -307,13 +309,13 @@ class Sim:
                 resp_drc,
                 self.prms.t_max,
                 self.prms.sigma,
-                self.prms.res_dist,
-                self.prms.resp_res_mean,
-                self.prms.resp_res_sd,
                 self.prms.resp_bnds,
                 self.n_trls,
                 sens_data,
                 resp_dr_auto2,
+                self.prms.res_dist,
+                self.prms.res_mean,
+                self.prms.res_sd,
             )
 
            # Combine RTs from sensory and response processes
@@ -356,9 +358,9 @@ class Sim:
                 sens_drc,
                 self.prms.t_max,
                 self.prms.sigma,
-                self.prms.res_dist,
-                self.prms.sens_res_mean,
-                self.prms.sens_res_sd,
+                #self.prms.res_dist,
+                #self.prms.sens_res_mean,
+                #self.prms.sens_res_sd,
                 self.prms.sens_bnds,
                 self.n_trls,
                 self.n_trls_data, #TODO
@@ -383,13 +385,13 @@ class Sim:
                 resp_drc,
                 self.prms.t_max,
                 self.prms.sigma,
-                self.prms.res_dist,
-                self.prms.resp_res_mean,
-                self.prms.resp_res_sd,
                 self.prms.resp_bnds,
                 self.n_trls,
                 self.n_trls_data, #TODO
                 sens_data,
+                self.prms.res_dist,
+                self.prms.res_mean,
+                self.prms.res_sd,
             )
 
             self.resp_xt.append(resp_activation)
@@ -645,17 +647,19 @@ def _run_simulation(
 
 @jit(nopython=True, parallel=True)
 def _run_simulation(
-    dr_auto, sp, dr_con, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls, sens_results=None, dr_auto2=None
+    dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls, sens_results=None, dr_auto2=None, res_dist_type=None, res_mean=None, res_sd=None
 ):
     # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
 
-    if res_dist_type == 1:
-        res_dist = np.random.normal(res_mean, res_sd, n_trls)
+    if res_dist_type is not None:
+        if res_dist_type == 1:
+            res_dist = np.random.normal(res_mean, res_sd, n_trls)
+        else:
+            width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
+            res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
     else:
-        width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
-        res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
-    #
+        res_dist = None
 
 
     # For each trial:
@@ -680,16 +684,21 @@ def _run_simulation(
                 
             # Determines the RT and outcome based on the accumulated evidence and boundary.
             if np.abs(trl_xt) > bnds:
-                data[0, trl] = tp + max(0, res_dist[trl])
+                if res_dist is None:
+                    data[0, trl] = tp # sensory process without residual time
+                else:
+                    data[0, trl] = tp + max(0, res_dist[trl]) # response process with
+                
                 data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
                 break
+                
 
     return data
 
 
 
 @jit(nopython=True, parallel=True)
-def _run_simulation_full(
+def _run_simulation_full( # TODO: res_mean etc. like run_simulation
     dr_auto,
     sp,
     dr_con,
@@ -1164,8 +1173,8 @@ class PrmsFit:
     sens_drc: tuple = (0.5, 0.1, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
     sens_aa_shape: tuple = (2, 1, 5, True, False)
-    sens_res_mean: tuple = (150, 50, 300, True, False)
-    sens_res_sd: tuple = (30, 5, 100, True, False)
+    #sens_res_mean: tuple = (150, 50, 300, True, False)
+    #sens_res_sd: tuple = (30, 5, 100, True, False)
 
     # Response Process Parameters
     resp_amp: tuple = (20, 0, 50, True, False)
@@ -1173,14 +1182,15 @@ class PrmsFit:
     resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
     resp_aa_shape: tuple = (2, 1, 5, True, False)
-    resp_res_mean: tuple = (150, 50, 300, True, False)
-    resp_res_sd: tuple = (30, 5, 100, True, False)
-
+    
     resp_amp_ana: tuple = (20, 0, 50, True, False)
     resp_tau_ana: tuple = (150, 5, 300, True, True)
     resp_aa_shape_ana: tuple = (2, 1, 5, True, False)
 
     # Shared Parameters
+    res_mean: tuple = (150, 50, 300, True, False)
+    res_sd: tuple = (30, 5, 100, True, False)
+
     sp_shape: tuple = (3, 2, 4, True, False)
     sigma: tuple = (4, 1, 10, False, False)
 
