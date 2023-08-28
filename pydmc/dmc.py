@@ -121,8 +121,8 @@ class Sim:
     def __init__(
         self,
         prms: Prms = Prms(),
-        n_trls: int = 100_000,
-        n_caf: int = 5,
+        n_trls: int = 10000,
+        n_caf: int = 9,
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
@@ -272,15 +272,12 @@ class Sim:
             ) # corresponding automatic drift rate
             sens_drc, sens_sp = self._sens_drc(), self._sp()
 
-            sens_data = _run_simulation(
+            sens_data = _run_simulation_sensory(
                 sens_dr_auto,
                 sens_sp,
                 sens_drc,
                 self.prms.t_max,
                 self.prms.sigma,
-                #self.prms.res_dist,
-                #self.prms.sens_res_mean,
-                #self.prms.sens_res_sd,
                 self.prms.sens_bnds,
                 self.n_trls
             )
@@ -303,7 +300,7 @@ class Sim:
 
             resp_drc, resp_sp = self._resp_drc(), self._sp()
 
-            resp_data = _run_simulation(
+            resp_data = _run_simulation_response(
                 resp_dr_auto,
                 resp_sp,
                 resp_drc,
@@ -645,21 +642,99 @@ def _run_simulation(
 ):
 '''
 
+# @jit(nopython=True, parallel=True)
+# def _run_simulation(
+#     dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls, sens_results=None, dr_auto2=None, res_dist_type=None, res_mean=None, res_sd=None
+# ):
+#     # Initializes arrays to store data and random residuals based on the specified distribution.
+#     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
+
+#     if res_dist_type is not None:
+#         if res_dist_type == 1:
+#             res_dist = np.random.normal(res_mean, res_sd, n_trls)
+#         else:
+#             width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
+#             res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
+#     else:
+#         res_dist = None
+
+
+#     # For each trial:
+#     for trl in prange(n_trls):
+
+#         trl_xt = sp[trl]
+
+#         # Checks sensory results (if provided) to determine the outcome direction.
+#         reverse_outcome = False
+#         if sens_results is not None:
+#             reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1
+
+#         for tp in range(0, t_max):
+
+#             if dr_auto2 is not None:
+#                 # auto + auto2 + controlled + wiener
+#                 trl_xt += dr_auto[tp] + dr_auto2[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+                
+#             else:
+#                 # auto + controlled + wiener
+#                 trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+                
+#             # Determines the RT and outcome based on the accumulated evidence and boundary.
+#             if np.abs(trl_xt) > bnds:
+
+#                 if res_dist is not None:
+#                     data[0, trl] = tp + max(0, res_dist[trl]) # response process with
+#                 else:
+#                     data[0, trl] = tp # sensory process without residual time
+                
+#                 data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
+#                 break
+                
+
+#     return data
+
+
+
 @jit(nopython=True, parallel=True)
-def _run_simulation(
+def _run_simulation_sensory(
+    dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls
+):
+    # Initializes arrays to store data and random residuals based on the specified distribution.
+    data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
+
+    # For each trial:
+    for trl in prange(n_trls):
+
+        trl_xt = sp[trl]
+
+        for tp in range(0, t_max):
+
+            # auto + controlled + wiener
+            trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+                
+            # Determines the RT and outcome based on the accumulated evidence and boundary.
+            if np.abs(trl_xt) > bnds:
+
+                data[0, trl] = tp # sensory process without residual time                
+                data[1, trl] = trl_xt < 0.0
+                break
+                
+    return data
+
+
+
+@jit(nopython=True, parallel=True)
+def _run_simulation_response(
     dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls, sens_results=None, dr_auto2=None, res_dist_type=None, res_mean=None, res_sd=None
 ):
     # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
 
-    if res_dist_type is not None:
-        if res_dist_type == 1:
-            res_dist = np.random.normal(res_mean, res_sd, n_trls)
-        else:
-            width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
-            res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
+    if res_dist_type == 1:
+        res_dist = np.random.normal(res_mean, res_sd, n_trls)
     else:
-        res_dist = None
+        width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
+        res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
 
 
     # For each trial:
@@ -668,32 +743,35 @@ def _run_simulation(
         trl_xt = sp[trl]
 
         # Checks sensory results (if provided) to determine the outcome direction.
-        reverse_outcome = False
-        if sens_results is not None:
-            reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1
+        # reverse_outcome = False
+        reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1, which is an error
 
         for tp in range(0, t_max):
 
-            if dr_auto2 is not None:
-                # auto + auto2 + controlled + wiener
-                trl_xt += dr_auto[tp] + dr_auto2[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
-                
-            else:
-                # auto + controlled + wiener
-                trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+            # auto + auto2 + controlled + wiener
+            trl_xt += dr_auto[tp] + dr_auto2[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
                 
             # Determines the RT and outcome based on the accumulated evidence and boundary.
             if np.abs(trl_xt) > bnds:
-                if res_dist is None:
-                    data[0, trl] = tp # sensory process without residual time
-                else:
-                    data[0, trl] = tp + max(0, res_dist[trl]) # response process with
-                
+
+                data[0, trl] = tp + max(0, res_dist[trl]) # response process with
                 data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
                 break
                 
 
     return data
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1234,7 +1312,7 @@ class PrmsFit:
         self.set_start_values(**random_values)
 
 
-    def dmc_prms(self, sp_dist: int = 1) -> Prms:
+    def dmc_prms(self, sp_dist: int = 0) -> Prms:
         prms_dict = self.dict(0)
         return Prms(
             **prms_dict, sp_dist=sp_dist, sp_lim_sens=(-self.sens_bnds[0], self.sens_bnds[1]), sp_lim_resp=(-self.resp_bnds[0], self.resp_bnds[1])
@@ -1257,7 +1335,7 @@ class Fit:
         self,
         res_ob: Ob,
         n_trls: int = 10000,
-        sim_prms: Prms = Prms(sp_dist=1), # simulation parameters of type 'Prms'
+        sim_prms: Prms = Prms(sp_dist=0), # simulation parameters of type 'Prms'
         #sim_prms: Prms = Prms(), # simulation parameters of type 'Prms'
         start_vals: PrmsFit = PrmsFit(), # Starting values for parameters, instance of PrmsFit
         search_grid: bool = True,
@@ -1317,7 +1395,7 @@ class Fit:
         for idx, comb in enumerate(combs):
             print(f"Searching grid combination {idx+1}/{len(combs)}")
             start_values.update(dict(zip(grid_space.keys(), comb)))
-            self.res_th.prms = Prms(**start_values, sp_dist=1)
+            self.res_th.prms = Prms(**start_values, sp_dist=0)
             self.res_th.run_simulation()
             self.cost_value = self.cost_function(self.res_th, self.res_ob)
             if self.cost_value < min_cost:
@@ -1374,20 +1452,20 @@ class Fit:
             f"sens_drc:{self.res_th.prms.sens_drc:4.2f}",
             f"sens_bnds:{self.res_th.prms.sens_bnds:4.1f}",
             f"sens_aa_shape:{self.res_th.prms.sens_aa_shape:4.1f}",
-            f"sens_res_mean:{self.res_th.prms.sens_res_mean:4.0f}",
-            f"sens_res_sd:{self.res_th.prms.sens_res_sd:4.1f}",
             # Response Process Parameters
             f"resp_amp:{self.res_th.prms.resp_amp:4.1f}",
             f"resp_tau:{self.res_th.prms.resp_tau:4.1f}",
             f"resp_drc:{self.res_th.prms.resp_drc:4.2f}",
             f"resp_bnds:{self.res_th.prms.resp_bnds:4.1f}",
             f"resp_aa_shape:{self.res_th.prms.resp_aa_shape:4.1f}",
-            f"resp_res_mean:{self.res_th.prms.resp_res_mean:4.0f}",
-            f"resp_res_sd:{self.res_th.prms.resp_res_sd:4.1f}",
+
 
             f"resp_amp_ana:{self.res_th.prms.resp_amp_ana:4.1f}",
             f"resp_tau_ana:{self.res_th.prms.resp_tau_ana:4.1f}",
             f"resp_aa_shape_ana:{self.res_th.prms.resp_aa_shape_ana:4.1f}",
+
+            f"res_mean:{self.res_th.prms.res_mean:4.0f}",
+            f"res_sd:{self.res_th.prms.res_sd:4.1f}",
 
             # Shared Parameters
             f"sp_shape:{self.res_th.prms.sp_shape:4.1f}",
