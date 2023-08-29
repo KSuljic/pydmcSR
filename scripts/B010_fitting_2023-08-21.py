@@ -111,11 +111,12 @@ fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=200, disp=Tru
 
 # %%
 fit_diff_adv = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
-fit_diff_adv.start_vals
+fit_vals_x = fit_diff_adv.start_vals.array()
+fit_vals_x
 
 # %%
-# fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.4), maxiter=60, disp=True, seed=seed)
-fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, maxiter=30, disp=True, seed=seed)
+fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.3), maxiter=50, disp=True, seed=seed)
+# fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, maxiter=30, disp=True, seed=seed)
 
 
 # ----------------- #
@@ -196,7 +197,7 @@ def plot_activation(tim, activation, title):
 
     plt.title(title)
     plt.xlabel('Time (ms)')
-    plt.ylim((-100, 100))
+    plt.ylim((-1000, 1000))
     plt.ylabel('Activation')
     plt.grid(True)
     plt.show()
@@ -206,8 +207,10 @@ def plot_activation(tim, activation, title):
 # %%
 # Example usage
 tim = np.linspace(0.01, 1000, 2000)  # This is just an example time range; you might want to adjust this
-plot_activation(tim, activation(tim, 200, 30, 2, 0.5, -1), 'Sensory Activation')
-plot_activation(tim, activation(tim, 50, 100, 3, 0.03, 100), 'Response Activation')
+plot_activation(tim, activation(tim, 150, 150, 1.5, 0.489, -1), 'Sensory Activation')
+plot_activation(tim, activation(tim, 140, 126, 1.6, 0.91, -1), 'Response Activation')
+plot_activation(tim, activation(tim, 139, 158, 1.34, 0.91, -1), 'Ana Activation')
+
 
 
 # %%
@@ -321,26 +324,26 @@ def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape,
 
 # %%
 # Create widgets for each parameter in Prms
-sens_amp_slider = widgets.FloatSlider(value=30, min=0, max=100, step=0.1, description='sens_amp:')
-sens_tau_slider = widgets.FloatSlider(value=150, min=0, max=300, step=1, description='sens_tau:')
-sens_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='sens_drc:')
-sens_bnds_slider = widgets.FloatSlider(value=60, min=0, max=200, step=0.1, description='sens_bnds:')
-sens_aa_shape_slider = widgets.FloatSlider(value=2.5, min=0, max=10, step=0.1, description='sens_aa_shape:')
+sens_amp_slider = widgets.FloatSlider(value=70, min=0, max=100, step=0.1, description='sens_amp:')
+sens_tau_slider = widgets.FloatSlider(value=440, min=0, max=300, step=1, description='sens_tau:')
+sens_drc_slider = widgets.FloatSlider(value=0.49, min=0, max=1, step=0.01, description='sens_drc:')
+sens_bnds_slider = widgets.FloatSlider(value=144, min=0, max=200, step=0.1, description='sens_bnds:')
+sens_aa_shape_slider = widgets.FloatSlider(value=3.7, min=0, max=10, step=0.1, description='sens_aa_shape:')
 
-resp_amp_slider = widgets.FloatSlider(value=70, min=0, max=100, step=0.1, description='resp_amp:')
-resp_tau_slider = widgets.FloatSlider(value=350, min=0, max=500, step=1, description='resp_tau:')
-resp_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='resp_drc:')
-resp_bnds_slider = widgets.FloatSlider(value=80, min=0, max=200, step=0.1, description='resp_bnds:')
-resp_aa_shape_slider = widgets.FloatSlider(value=2, min=0, max=10, step=0.1, description='resp_aa_shape:')
+resp_amp_slider = widgets.FloatSlider(value=139, min=0, max=100, step=0.1, description='resp_amp:')
+resp_tau_slider = widgets.FloatSlider(value=126, min=0, max=500, step=1, description='resp_tau:')
+resp_drc_slider = widgets.FloatSlider(value=0.9, min=0, max=1, step=0.01, description='resp_drc:')
+resp_bnds_slider = widgets.FloatSlider(value=31, min=0, max=200, step=0.1, description='resp_bnds:')
+resp_aa_shape_slider = widgets.FloatSlider(value=1.6, min=0, max=10, step=0.1, description='resp_aa_shape:')
 
-resp_amp_ana_slider = widgets.FloatSlider(value=15, min=0, max=100, step=0.1, description='resp_amp_ana:')
-resp_tau_ana_slider = widgets.FloatSlider(value=150, min=0, max=500, step=1, description='resp_tau_ana:')
-resp_aa_shape_ana_slider = widgets.FloatSlider(value=2.5, min=0, max=10, step=0.1, description='resp_aa_shape_ana:')
+resp_amp_ana_slider = widgets.FloatSlider(value=138, min=0, max=100, step=0.1, description='resp_amp_ana:')
+resp_tau_ana_slider = widgets.FloatSlider(value=158, min=0, max=500, step=1, description='resp_tau_ana:')
+resp_aa_shape_ana_slider = widgets.FloatSlider(value=1.34, min=0, max=10, step=0.1, description='resp_aa_shape_ana:')
 
 res_mean_slider = widgets.FloatSlider(value=180, min=0, max=300, step=0.1, description='res_mean:')
-res_sd_slider = widgets.FloatSlider(value=46, min=0, max=100, step=0.1, description='res_sd:')
+res_sd_slider = widgets.FloatSlider(value=0, min=0, max=100, step=0.1, description='res_sd:')
 
-sp_shape_slider = widgets.FloatSlider(value=2.4, min=0, max=10, step=0.1, description='sp_shape:')
+sp_shape_slider = widgets.FloatSlider(value=3, min=0, max=10, step=0.1, description='sp_shape:')
 sigma_slider = widgets.FloatSlider(value=4.0, min=0, max=10, step=0.1, description='sigma:')
 sp_bias_slider = widgets.FloatSlider(value=0.0, min=-10, max=10, step=0.1, description='sp_bias:')
 dr_shape_slider = widgets.FloatSlider(value=3.0, min=0, max=10, step=0.1, description='dr_shape:')
@@ -439,7 +442,7 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # %%
 import inspect
 
-para_dict = fit.best_prms_out.__dict__
+para_dict = fit_diff_adv.best_prms_out.__dict__
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 

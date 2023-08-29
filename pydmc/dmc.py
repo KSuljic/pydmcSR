@@ -255,7 +255,7 @@ class Sim:
 
         self._calc_caf_values()
         self._calc_delta_values()
-        self._results_summary()
+        #self._results_summary() #TODO
 
 
     def _run_simulation(self) -> None:
@@ -1246,7 +1246,7 @@ class PrmsFit:
     '''
     # default, min, max, free fit, free grid
     # Sensory Process Parameters
-    sens_amp: tuple = (20, 0, 50, True, False)
+    sens_amp: tuple = (20, 0, 150, True, False)
     sens_tau: tuple = (150, 5, 500, True, True)
     sens_drc: tuple = (0.5, 0.1, 1.0, True, False)
     sens_bnds: tuple = (75, 20, 150, True, False)
@@ -1255,13 +1255,13 @@ class PrmsFit:
     #sens_res_sd: tuple = (30, 5, 100, True, False)
 
     # Response Process Parameters
-    resp_amp: tuple = (20, 0, 50, True, False)
+    resp_amp: tuple = (20, 0, 150, True, False)
     resp_tau: tuple = (150, 5, 500, True, True)
     resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
     resp_bnds: tuple = (75, 20, 150, True, False)
     resp_aa_shape: tuple = (2, 1, 5, True, False)
     
-    resp_amp_ana: tuple = (20, 0, 50, True, False)
+    resp_amp_ana: tuple = (20, 0, 150, True, False)
     resp_tau_ana: tuple = (150, 5, 500, True, True)
     resp_aa_shape_ana: tuple = (2, 1, 5, True, False)
 
