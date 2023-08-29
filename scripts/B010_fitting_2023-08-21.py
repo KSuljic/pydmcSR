@@ -93,7 +93,7 @@ fit_vals_x
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=70, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=200, disp=True, seed=seed)
 
 # sens_amp:28.2 sens_tau:55.0 sens_drc:0.73 sens_bnds:70.3 sens_aa_shape: 2.1 sens_res_mean:  80 sens_res_sd: 6.9 resp_amp:47.2 resp_tau:37.8 resp_drc:0.29 resp_bnds:92.0 resp_aa_shape: 2.0 resp_res_mean: 158 resp_res_sd:82.8 resp_amp_ana:44.4 resp_tau_ana:258.7 resp_aa_shape_ana: 1.7 sp_shape: 3.8 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=1.63
 # 1.63
@@ -229,11 +229,11 @@ df_fit.insert(len(df_fit.columns), 'Source', 'Fit')
 df_fit_sub = df_fit.groupby('condition').sample(n=11982)
 
 # %%
-df_comp = pd.concat([df, df_fit_sub])
+df_comp = pd.concat([df, df_fit])
 
 
 # %%
-df_fit_sub.groupby('condition').count()
+df_fit.groupby('condition').count()
 
 
 # %%
@@ -275,16 +275,17 @@ for ax in axes.axes.flat:
 
 # %%
 # Define the widget function
-def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, sens_res_mean, sens_res_sd,
-                    resp_amp, resp_tau, resp_drc, resp_bnds, resp_aa_shape, resp_res_mean, resp_res_sd,
+def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, 
+                    resp_amp, resp_tau, resp_drc, resp_bnds, resp_aa_shape,
                     resp_amp_ana, resp_tau_ana, resp_aa_shape_ana,
+                    res_mean, res_sd,
                     sp_shape, sigma, sp_bias, dr_shape):
     
     para = Prms(
         sens_amp=sens_amp, sens_tau=sens_tau, sens_drc=sens_drc, sens_bnds=sens_bnds, sens_aa_shape=sens_aa_shape,
-        sens_res_mean=sens_res_mean, sens_res_sd=sens_res_sd, resp_amp=resp_amp, resp_tau=resp_tau, resp_drc=resp_drc,
-        resp_bnds=resp_bnds, resp_aa_shape=resp_aa_shape, resp_res_mean=resp_res_mean, resp_res_sd=resp_res_sd,
+        resp_amp=resp_amp, resp_tau=resp_tau, resp_drc=resp_drc, resp_bnds=resp_bnds, resp_aa_shape=resp_aa_shape, 
         resp_amp_ana=resp_amp_ana, resp_tau_ana=resp_tau_ana, resp_aa_shape_ana=resp_aa_shape_ana,
+        res_mean=res_mean, res_sd=res_sd,
         sp_shape=sp_shape, sigma=sigma, sp_bias=sp_bias, dr_shape=dr_shape
     )
 
@@ -320,23 +321,26 @@ def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, sens
 
 # %%
 # Create widgets for each parameter in Prms
-sens_amp_slider = widgets.FloatSlider(value=40, min=0, max=100, step=0.1, description='sens_amp:')
-sens_tau_slider = widgets.FloatSlider(value=200, min=0, max=300, step=1, description='sens_tau:')
-sens_drc_slider = widgets.FloatSlider(value=0.3, min=0, max=1, step=0.01, description='sens_drc:')
-sens_bnds_slider = widgets.FloatSlider(value=80, min=0, max=200, step=0.1, description='sens_bnds:')
-sens_aa_shape_slider = widgets.FloatSlider(value=2, min=0, max=10, step=0.1, description='sens_aa_shape:')
-sens_res_mean_slider = widgets.FloatSlider(value=40, min=0, max=200, step=0.1, description='sens_res_mean:')
-sens_res_sd_slider = widgets.FloatSlider(value=21, min=0, max=100, step=0.1, description='sens_res_sd:')
+sens_amp_slider = widgets.FloatSlider(value=30, min=0, max=100, step=0.1, description='sens_amp:')
+sens_tau_slider = widgets.FloatSlider(value=150, min=0, max=300, step=1, description='sens_tau:')
+sens_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='sens_drc:')
+sens_bnds_slider = widgets.FloatSlider(value=60, min=0, max=200, step=0.1, description='sens_bnds:')
+sens_aa_shape_slider = widgets.FloatSlider(value=2.5, min=0, max=10, step=0.1, description='sens_aa_shape:')
 
-resp_amp_slider = widgets.FloatSlider(value=100, min=0, max=100, step=0.1, description='resp_amp:')
-resp_tau_slider = widgets.FloatSlider(value=150, min=0, max=300, step=1, description='resp_tau:')
+resp_amp_slider = widgets.FloatSlider(value=70, min=0, max=100, step=0.1, description='resp_amp:')
+resp_tau_slider = widgets.FloatSlider(value=350, min=0, max=500, step=1, description='resp_tau:')
 resp_drc_slider = widgets.FloatSlider(value=0.4, min=0, max=1, step=0.01, description='resp_drc:')
-resp_bnds_slider = widgets.FloatSlider(value=100, min=0, max=200, step=0.1, description='resp_bnds:')
-resp_aa_shape_slider = widgets.FloatSlider(value=3, min=0, max=10, step=0.1, description='resp_aa_shape:')
-resp_res_mean_slider = widgets.FloatSlider(value=80, min=0, max=500, step=0.1, description='resp_res_mean:')
-resp_res_sd_slider = widgets.FloatSlider(value=10, min=0, max=100, step=0.1, description='resp_res_sd:')
+resp_bnds_slider = widgets.FloatSlider(value=80, min=0, max=200, step=0.1, description='resp_bnds:')
+resp_aa_shape_slider = widgets.FloatSlider(value=2, min=0, max=10, step=0.1, description='resp_aa_shape:')
 
-sp_shape_slider = widgets.FloatSlider(value=4, min=0, max=10, step=0.1, description='sp_shape:')
+resp_amp_ana_slider = widgets.FloatSlider(value=15, min=0, max=100, step=0.1, description='resp_amp_ana:')
+resp_tau_ana_slider = widgets.FloatSlider(value=150, min=0, max=500, step=1, description='resp_tau_ana:')
+resp_aa_shape_ana_slider = widgets.FloatSlider(value=2.5, min=0, max=10, step=0.1, description='resp_aa_shape_ana:')
+
+res_mean_slider = widgets.FloatSlider(value=180, min=0, max=300, step=0.1, description='res_mean:')
+res_sd_slider = widgets.FloatSlider(value=46, min=0, max=100, step=0.1, description='res_sd:')
+
+sp_shape_slider = widgets.FloatSlider(value=2.4, min=0, max=10, step=0.1, description='sp_shape:')
 sigma_slider = widgets.FloatSlider(value=4.0, min=0, max=10, step=0.1, description='sigma:')
 sp_bias_slider = widgets.FloatSlider(value=0.0, min=-10, max=10, step=0.1, description='sp_bias:')
 dr_shape_slider = widgets.FloatSlider(value=3.0, min=0, max=10, step=0.1, description='dr_shape:')
@@ -345,8 +349,9 @@ dr_shape_slider = widgets.FloatSlider(value=3.0, min=0, max=10, step=0.1, descri
 # Define the user interface with all the sliders
 ui = widgets.VBox([
     sens_amp_slider, sens_tau_slider, sens_drc_slider, sens_bnds_slider, sens_aa_shape_slider, 
-    sens_res_mean_slider, sens_res_sd_slider, resp_amp_slider, resp_tau_slider, resp_drc_slider, 
-    resp_bnds_slider, resp_aa_shape_slider, resp_res_mean_slider, resp_res_sd_slider, sp_shape_slider, 
+    resp_amp_slider, resp_tau_slider, resp_drc_slider, resp_bnds_slider, resp_aa_shape_slider,
+    resp_amp_ana_slider, resp_tau_ana_slider, resp_aa_shape_ana_slider,
+    res_mean_slider, res_sd_slider, sp_shape_slider, 
     sigma_slider, sp_bias_slider, dr_shape_slider
 ])
 
@@ -358,15 +363,19 @@ out = widgets.interactive_output(widget_function, {
     'sens_drc': sens_drc_slider,
     'sens_bnds': sens_bnds_slider,
     'sens_aa_shape': sens_aa_shape_slider,
-    'sens_res_mean': sens_res_mean_slider,
-    'sens_res_sd': sens_res_sd_slider,
+ 
     'resp_amp': resp_amp_slider,
     'resp_tau': resp_tau_slider,
     'resp_drc': resp_drc_slider,
     'resp_bnds': resp_bnds_slider,
     'resp_aa_shape': resp_aa_shape_slider,
-    'resp_res_mean': resp_res_mean_slider,
-    'resp_res_sd': resp_res_sd_slider,
+    
+    'resp_amp_ana': resp_amp_ana_slider,
+    'resp_tau_ana': resp_tau_ana_slider,
+    'resp_aa_shape_ana': resp_aa_shape_ana_slider,
+    
+    'res_mean': res_mean_slider,
+    'res_sd': res_sd_slider,
     'sp_shape': sp_shape_slider,
     'sigma': sigma_slider,
     'sp_bias': sp_bias_slider,
@@ -383,15 +392,13 @@ parameters = {
     'sens_drc': sens_drc_slider.value,
     'sens_bnds': sens_bnds_slider.value,
     'sens_aa_shape': sens_aa_shape_slider.value,
-    'sens_res_mean': sens_res_mean_slider.value,
-    'sens_res_sd': sens_res_sd_slider.value,
     'resp_amp': resp_amp_slider.value,
     'resp_tau': resp_tau_slider.value,
     'resp_drc': resp_drc_slider.value,
     'resp_bnds': resp_bnds_slider.value,
     'resp_aa_shape': resp_aa_shape_slider.value,
-    'resp_res_mean': resp_res_mean_slider.value,
-    'resp_res_sd': resp_res_sd_slider.value,
+    'res_mean': res_mean_slider.value,
+    'res_sd': res_sd_slider.value,
     'sp_shape': sp_shape_slider.value,
     'sigma': sigma_slider.value,
     'sp_bias': sp_bias_slider.value,
@@ -408,10 +415,10 @@ prmsfit
 
 # -------------- #
 # %%
-fit = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=True)
+fit = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False)
 
 # %%
-fit.fit_data(maxiter=2, disp=True)
+fit.fit_data(maxiter=5000, disp=True)
 
 
 # %%
@@ -432,7 +439,7 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # %%
 import inspect
 
-para_dict = fit_diff.best_prms_out.__dict__
+para_dict = fit.best_prms_out.__dict__
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 
