@@ -28,13 +28,12 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 
 # %% Parameters
-seed = 12
+seed = 18
 
 # -------------- #
 
 # %%
-df = pd.read_csv('..\data\B010_pydmcVersion_150Cutoff_wo9-10-11-13-45-62.csv', usecols=lambda col: col not in ['Unnamed: 0'])
-
+df = pd.read_csv('data\B010_pydmcVersion_150Cutoff_wo9-10-11-13-45-62.csv', usecols=lambda col: col not in ['Unnamed: 0'])
 
 
 # %%
@@ -56,14 +55,23 @@ Plot(res_ob).pdf()
 # %%
 prmsfit = PrmsFit()
 prmsfit.set_random_start_values(seed_value=seed)
-prmsfit
+prms_dict = prmsfit.dict()
+prms_dict
 
 
-# # %%
-# prmsfit = PrmsFit()
-# prmsfit.set_start_values(sens_amp=31.548172023227444, sens_tau=103.05265775452429, sens_drc=0.681503332423484, sens_bnds=67.41466283935907, sens_aa_shape=1.2973868891908833, sens_res_mean=88.7467731111973, sens_res_sd=10.483958752969002, resp_amp=44.31823917665024, resp_tau=36.27356063321143, resp_drc=0.30592880998664884, resp_bnds=91.31821857596368, resp_aa_shape=1.921883910034707, resp_res_mean=175.50203117507124, resp_res_sd=84.69724860156873, resp_amp_ana=48.248678508946824, resp_tau_ana=266.19490748860835, resp_aa_shape_ana=1.5902979548578722, sp_shape=3.623193780450819, sigma=4, res_dist=1, t_max=2000, sp_dist=1, sp_lim=(-75, 75), sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3, sp_lim_sens=(-67.41466283935907, 67.41466283935907), sp_lim_resp=(-91.31821857596368, 91.31821857596368))
-# fit_vals_x = prmsfit.array()
 
+# %%
+prms = Prms(**prms_dict)
+sim = Sim(prms)
+df = sim2data(sim)
+res_ob = Ob(df, n_caf=9)
+
+
+
+# %%
+prmsfit = PrmsFit()
+prmsfit.set_start_values(sens_amp=17.81197539507317, sens_tau=339.43962817696405, sens_drc=0.7150909968781219, sens_bnds=112.15466147140911, sens_aa_shape=3.276941985912356, sp_lim_sens=(-112.15466147140911, 112.15466147140911), resp_amp=144.2996073267513, resp_tau=341.8996840532543, resp_drc=0.9979278012297952, resp_bnds=26.343192995405516, resp_aa_shape=1.3340081032175015, resp_amp_ana=113.13666504598645, resp_tau_ana=117.22705484742178, resp_aa_shape_ana=1.4981306675266353, sp_lim_resp=(-26.343192995405516, 26.343192995405516), res_dist=1, res_mean=154.84377389599183, res_sd=62.14378633126033, sp_shape=3, sigma=4, t_max=2000, sp_dist=0, sp_bias=0.0, dr_dist=0, dr_lim=(0.1, 0.7), dr_shape=3)
+fit_vals_x = prmsfit.array()
 
 
 # -------------- #
@@ -71,7 +79,7 @@ prmsfit
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', maxiter=100, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', disp=True, maxiter=500, seed=seed)
 
 
 # ----------------- #
@@ -93,7 +101,7 @@ fit_vals_x
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=200, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=500, disp=True, seed=seed)
 
 # sens_amp:28.2 sens_tau:55.0 sens_drc:0.73 sens_bnds:70.3 sens_aa_shape: 2.1 sens_res_mean:  80 sens_res_sd: 6.9 resp_amp:47.2 resp_tau:37.8 resp_drc:0.29 resp_bnds:92.0 resp_aa_shape: 2.0 resp_res_mean: 158 resp_res_sd:82.8 resp_amp_ana:44.4 resp_tau_ana:258.7 resp_aa_shape_ana: 1.7 sp_shape: 3.8 sigma: 4.0 sp_bias: 0.0 dr_shape: 3.0 | cost=1.63
 # 1.63
@@ -442,7 +450,7 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # %%
 import inspect
 
-para_dict = fit_diff_adv.best_prms_out.__dict__
+para_dict = fit_diff.best_prms_out.__dict__
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 

@@ -107,7 +107,7 @@ class Prms:
     sigma: float = 4
     t_max: int = 2000
     sp_dist: int = 0
-    sp_lim: tuple = (-75, 75)
+    # sp_lim: tuple = (-75, 75)
     sp_bias: float = 0.0
     dr_dist: int = 0
     dr_lim: tuple = (0.1, 0.7)
@@ -123,6 +123,7 @@ class Sim:
         prms: Prms = Prms(),
         n_trls: int = 10000,
         n_caf: int = 9,
+        n_cdf: int = 20,
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
@@ -176,6 +177,7 @@ class Sim:
         self.prms = prms
         self.n_trls = n_trls
         self.n_caf = n_caf
+        self.n_cdf = n_cdf
         self.n_delta = n_delta
         self.p_delta = p_delta
         self.t_delta = t_delta
@@ -866,7 +868,8 @@ class Ob:
     def __init__(
         self,
         data: Union[str, pd.DataFrame],
-        n_caf: int = 5,
+        n_caf: int = 9,
+        n_cdf: int = 20,
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
@@ -894,6 +897,7 @@ class Ob:
         skiprows
         """
         self.n_caf = n_caf
+        self.n_cdf = n_cdf,
         self.n_delta = n_delta
         self.p_delta = p_delta
         self.t_delta = t_delta
@@ -1269,7 +1273,7 @@ class PrmsFit:
     res_mean: tuple = (150, 50, 300, True, False)
     res_sd: tuple = (30, 5, 100, True, False)
 
-    sp_shape: tuple = (3, 2, 4, True, False)
+    sp_shape: tuple = (3, 2, 4, False, False)
     sigma: tuple = (4, 1, 10, False, False)
 
 
@@ -1340,6 +1344,7 @@ class Fit:
         start_vals: PrmsFit = PrmsFit(), # Starting values for parameters, instance of PrmsFit
         search_grid: bool = True,
         n_grid: int = 10,
+        n_cdf: int = 20,
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
@@ -1355,6 +1360,7 @@ class Fit:
         self.search_grid = search_grid
         self.n_grid = n_grid
         self.dmc_prms = start_vals.dmc_prms() # Derived parameters for the DMC model.
+        self.n_cdf = n_cdf
         self.n_delta = n_delta
         self.p_delta = p_delta
         self.t_delta = t_delta
@@ -1627,19 +1633,66 @@ class Fit:
                 if cond == condition_name:
                     return df
             raise KeyError(f"Condition name {condition_name} not found in delta list.")
+        
+        def get_simRT(res_th, condition_name):
+            for cond, df in res_th.data.items():
+                if cond == condition_name:
+                    return df
+            raise KeyError(f"Condition name {condition_name} not found in delta list.")
+        
+        def binned_cdf_rmse(simulated_data, observed_data, num_bins=res_th.n_cdf):
 
+            penalty_value = 100
+            
+            try:
+                # Define the bin edges
+                bin_edges = np.linspace(min(min(simulated_data), min(observed_data)),
+                                        max(max(simulated_data), max(observed_data)), 
+                                        num=num_bins+1)
+                
+                # Compute the histogram for simulated data
+                hist_sim, _ = np.histogram(simulated_data, bins=bin_edges, density=True)
+                
+                # Convert histogram values to CDF values
+                cdf_sim = np.cumsum(hist_sim)
+                cdf_sim /= cdf_sim[-1]  # Normalize
+                
+                # Compute the histogram for observed data
+                hist_obs, _ = np.histogram(observed_data, bins=bin_edges, density=True)
+                
+                # Convert histogram values to CDF values
+                cdf_obs = np.cumsum(hist_obs)
+                cdf_obs /= cdf_obs[-1]  # Normalize
+
+                # Calculate RMSE for the binned CDF values
+                return np.sqrt(np.mean((cdf_sim - cdf_obs) ** 2))
+            
+            except ValueError:
+                return penalty_value
+
+        
         total_cost = 0
         max_caf_cost = 0
         max_delta_cost = 0
+        max_cdf_cost = 0
 
         # First, find the maximum costs for normalization purposes
-        for condition_name_th, condition_df_th in res_th.caf.items():
+        for condition_name_th, caf_df_th in res_th.caf.items():
             condition_name_ob = condition_name_th
-            condition_df_ob = res_ob.caf.get(condition_name_ob)
 
-            cost_caf = np.sqrt(np.mean((condition_df_th - condition_df_ob) ** 2))
+            # CAF
+            caf_df_ob = res_ob.caf.get(condition_name_ob)
+            cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2))
             max_caf_cost = max(max_caf_cost, cost_caf)
 
+            # CDF
+            df_th = get_simRT(res_th, condition_name_th)
+            cdf_df_th = df_th[0][(df_th[1] == 0)]
+            cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
+            cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob)
+            max_cdf_cost = max(max_cdf_cost, cost_cdf)
+
+            # DELTA
             if condition_name_ob not in ["exHULU", "anHULU"]:
                 delta_df_th = get_delta(res_th.delta, condition_name_ob)
                 delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
@@ -1650,18 +1703,29 @@ class Fit:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
                 max_delta_cost = max(max_delta_cost, cost_delta)
 
-        # Set weights for CAF and delta (RT) to be equal
-        weight_rt = 0.5
+        # Set weights for CAF, delta (RT), and CDF to be equal
         weight_caf = 0.5
+        weight_delta = 0.25
+        weight_cdf = 0.25
+
 
         # Now, compute the costs and normalize them
-        for condition_name_th, condition_df_th in res_th.caf.items():
+        for condition_name_th, caf_df_th in res_th.caf.items():
             condition_name_ob = condition_name_th
-            condition_df_ob = res_ob.caf.get(condition_name_ob)
 
-            cost_caf = np.sqrt(np.mean((condition_df_th - condition_df_ob) ** 2)) / max_caf_cost
+            # CAF
+            caf_df_ob = res_ob.caf.get(condition_name_ob)
+            cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) / max_caf_cost
             total_cost += weight_caf * cost_caf
 
+            # CDF
+            df_th = get_simRT(res_th, condition_name_th)
+            cdf_df_th = df_th[0][(df_th[1] == 0)]
+            cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
+            cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) / max_cdf_cost
+            total_cost += weight_cdf * cost_cdf
+
+            # DELTA
             if condition_name_ob not in ["exHULU", "anHULU"]:
                 delta_df_th = get_delta(res_th.delta, condition_name_ob)
                 delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
@@ -1670,7 +1734,7 @@ class Fit:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) / max_delta_cost
                 else:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) / max_delta_cost
-                total_cost += weight_rt * cost_delta
+                total_cost += weight_delta * cost_delta
 
         return total_cost
 
