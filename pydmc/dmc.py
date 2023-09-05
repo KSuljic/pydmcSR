@@ -603,6 +603,8 @@ class Sim:
         elif self.prms.dr_dist == 2:
             # between trial variablity in drift rate from uniform
             return np.random.uniform(self.prms.sens_dr_lim[0], self.prms.sens_dr_lim[1], self.n_trls)
+        # elif self.prms.dr_dist == 3:
+        #     return np.random.normal(self.prms.sens_drc, self.prms.sens_drcSD, self.n_trls)
 
     def _resp_drc(self) -> np.ndarray:
         '''Controlled Drift Rate: Variable drift rate? Returns response drift rates based on the specified distribution.'''
@@ -1339,7 +1341,8 @@ class Fit:
         self,
         res_ob: Ob,
         n_trls: int = 10000,
-        sim_prms: Prms = Prms(sp_dist=0), # simulation parameters of type 'Prms'
+        sim_prms: Prms = Prms(),
+        # sim_prms: Prms = Prms(sp_dist=0), # simulation parameters of type 'Prms'
         #sim_prms: Prms = Prms(), # simulation parameters of type 'Prms'
         start_vals: PrmsFit = PrmsFit(), # Starting values for parameters, instance of PrmsFit
         search_grid: bool = True,
@@ -1642,7 +1645,7 @@ class Fit:
         
         def binned_cdf_rmse(simulated_data, observed_data, num_bins=res_th.n_cdf):
 
-            penalty_value = 100
+            penalty_value = 1e10
             
             try:
                 # Define the bin edges
@@ -1672,41 +1675,41 @@ class Fit:
 
         
         total_cost = 0
-        max_caf_cost = 0
-        max_delta_cost = 0
-        max_cdf_cost = 0
+        # max_caf_cost = 0
+        # max_delta_cost = 0
+        # max_cdf_cost = 0
 
-        # First, find the maximum costs for normalization purposes
-        for condition_name_th, caf_df_th in res_th.caf.items():
-            condition_name_ob = condition_name_th
+        # # First, find the maximum costs for normalization purposes
+        # for condition_name_th, caf_df_th in res_th.caf.items():
+        #     condition_name_ob = condition_name_th
 
-            # CAF
-            caf_df_ob = res_ob.caf.get(condition_name_ob)
-            cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2))
-            max_caf_cost = max(max_caf_cost, cost_caf)
+        #     # CAF
+        #     caf_df_ob = res_ob.caf.get(condition_name_ob)
+        #     cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2))
+        #     max_caf_cost = max(max_caf_cost, cost_caf)
 
-            # CDF
-            df_th = get_simRT(res_th, condition_name_th)
-            cdf_df_th = df_th[0][(df_th[1] == 0)]
-            cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
-            cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob)
-            max_cdf_cost = max(max_cdf_cost, cost_cdf)
+        #     # CDF
+        #     df_th = get_simRT(res_th, condition_name_th)
+        #     cdf_df_th = df_th[0][(df_th[1] == 0)]
+        #     cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
+        #     cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob)
+        #     max_cdf_cost = max(max_cdf_cost, cost_cdf)
 
-            # DELTA
-            if condition_name_ob not in ["exHULU", "anHULU"]:
-                delta_df_th = get_delta(res_th.delta, condition_name_ob)
-                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
+        #     # DELTA
+        #     if condition_name_ob not in ["exHULU", "anHULU"]:
+        #         delta_df_th = get_delta(res_th.delta, condition_name_ob)
+        #         delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
 
-                if condition_name_ob in ["exHULU", "anHULU"]:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2))
-                else:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
-                max_delta_cost = max(max_delta_cost, cost_delta)
+        #         if condition_name_ob in ["exHULU", "anHULU"]:
+        #             cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2))
+        #         else:
+        #             cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
+        #         max_delta_cost = max(max_delta_cost, cost_delta)
 
         # Set weights for CAF, delta (RT), and CDF to be equal
-        weight_caf = 0.5
+        weight_caf = 50
         weight_delta = 0.25
-        weight_cdf = 0.25
+        weight_cdf = 25
 
 
         # Now, compute the costs and normalize them
@@ -1715,14 +1718,14 @@ class Fit:
 
             # CAF
             caf_df_ob = res_ob.caf.get(condition_name_ob)
-            cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) / max_caf_cost
+            cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) # / max_caf_cost
             total_cost += weight_caf * cost_caf
 
             # CDF
             df_th = get_simRT(res_th, condition_name_th)
             cdf_df_th = df_th[0][(df_th[1] == 0)]
             cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
-            cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) / max_cdf_cost
+            cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) # / max_cdf_cost
             total_cost += weight_cdf * cost_cdf
 
             # DELTA
@@ -1731,9 +1734,9 @@ class Fit:
                 delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
 
                 if condition_name_ob in ["exHULU", "anHULU"]:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) / max_delta_cost
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) #/ max_delta_cost
                 else:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) / max_delta_cost
+                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) # / max_delta_cost
                 total_cost += weight_delta * cost_delta
 
         return total_cost
