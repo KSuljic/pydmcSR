@@ -73,47 +73,53 @@ class Prms:
     """
 
     # Sensory Process Parameters
-    sens_amp: float = 20 # Amplitude of automatic process
-    sens_tau: float = 30 # tau of automatic process
-    sens_drc: float = 0.5 # drc drift rate of controlled processes
+    amp_ana: float = 20 # Amplitude of anatomical conflict
+    tau_ana: float = 30  # tau of anatomical conflict
+    aa_shape_ana: float = 2 # shape parameter of anat
+
+    sens_drc_comp: float = 0.5 # drc drift rate of controlled processes if uncrossed
+    sens_drc_incomp: float = 0.5 # drc drift rate of controlled processes if crossed (interferred)
+
     sens_bnds: float = 75 # boundaries
-    sens_aa_shape: float = 2 # shape parameter of automatic activation
-
-    sp_lim_sens: tuple = (-75, 75)     # New attributes for sensory and response starting point limits
-
-
+    sp_lim_sens: tuple = (-75, 75) # sensory starting point limits
 
     # Response Process Parameters
-    resp_amp: float = 20
-    resp_tau: float = 30
+    amp_ext: float = 20 # Amplitude of anatomical conflict
+    tau_ext: float = 30  # tau of anatomical conflict
+    aa_shape_ext: float = 2 # shape parameter of anat
+
+    amp_anaS2extR: float = 20 # Amplitude of anatomical conflict
+    tau_anaS2extR: float = 30  # tau of anatomical conflict
+    aa_shape_anaS2extR: float = 2 # shape parameter of anat
+
+    amp_extS2anaR: float = 20 # Amplitude of anatomical conflict
+    tau_extS2anaR: float = 30  # tau of anatomical conflict
+    aa_shape_extS2anaR: float = 2 # shape parameter of anat
+
     resp_drc: float = 0.5
     resp_bnds: float = 75
-    resp_aa_shape: float = 2
- 
-    # anatomical response conflict
-    resp_amp_ana: float = 20
-    resp_tau_ana: float = 30
-    resp_aa_shape_ana: float = 2
-
-    sp_lim_resp: tuple = (-75, 75)     # New attributes for sensory and response starting point limits
+    sp_lim_resp: tuple = (-75, 75)     # response starting point limits
 
 
     # Shared Parameters
-    res_dist: int = 1
-    res_mean: float = 150
+    # non-decision time
+    res_dist: int = 1 # 1=normal dist
+    res_mean: float = 180
     res_sd: float = 30
 
+    # starting point
+    sp_dist: int = 0 # 0=constant
     sp_shape: float = 3
-    sigma: float = 4
-    t_max: int = 2000
-    sp_dist: int = 0
-    # sp_lim: tuple = (-75, 75)
     sp_bias: float = 0.0
-    dr_dist: int = 0
+
+    # drift rate
+    dr_dist: int = 0 # 0=constant
     dr_lim: tuple = (0.1, 0.7)
     dr_shape: float = 3
 
-
+    sigma: float = 4 # scaling parameter
+    t_max: int = 2000
+    
 
 class Sim:
     """DMC Simulation."""
@@ -194,16 +200,16 @@ class Sim:
         self.delta = None
         self.plot: Plot = Plot(self)
 
-        # Coding of Conditions of B010 (condition, sens_comp, resp_comp, ana_comp)
+        # Coding of Conditions of B010 (condition, cross_comp, comp_ana, ext_ana, comp_anaS2extR, comp_extS2anaR)
         self.conditions = [
-            ("exHULU", 1, 1, 1),
-            ("exHCLU", 1, 1, -1),
-            ("exHULC", -1, -1, -1),
-            ("exHCLC", -1, -1, 1),
-            ("anHULU", 1, 1, 1),
-            ("anHCLU", 1, -1, 1),
-            ("anHULC", -1, 1, 1),
-            ("anHCLC", -1, -1, 1),
+            ("exHULU", 1, 1, 1, 1, 1),
+            ("exHCLU", 1, -1, 1, 1, -1),
+            ("exHULC", -1, -1, 1, -1, 1),
+            ("exHCLC", -1, 1, 1, -1, -1),
+            ("anHULU", 1, 1, 1, 1, 1),
+            ("anHCLU", 1, 1, -1, -1, 1),
+            ("anHULC", -1, 1, -1, 1, -1),
+            ("anHCLC", -1, 1, 1, -1, -1),
         ]
 
         
@@ -226,27 +232,11 @@ class Sim:
         """Run DMC simulation."""
 
         self.tim = np.arange(1, self.prms.t_max + 1, 1)
-
-        self.sens_eq4 = (
-            self.prms.sens_amp
-            * np.exp(-self.tim / self.prms.sens_tau)
-            * (np.exp(1) * self.tim / (self.prms.sens_aa_shape - 1) / self.prms.sens_tau)
-            ** (self.prms.sens_aa_shape - 1)
-        )
-
-        self.resp_eq4 = (
-            self.prms.resp_amp
-            * np.exp(-self.tim / self.prms.resp_tau)
-            * (np.exp(1) * self.tim / (self.prms.resp_aa_shape - 1) / self.prms.resp_tau)
-            ** (self.prms.resp_aa_shape - 1)
-        )
-
-        self.resp_eq4_ana = (
-            self.prms.resp_amp_ana
-            * np.exp(-self.tim / self.prms.resp_tau_ana)
-            * (np.exp(1) * self.tim / (self.prms.resp_aa_shape_ana - 1) / self.prms.resp_tau_ana)
-            ** (self.prms.resp_aa_shape_ana - 1)
-        )
+#
+        self.eq4_ana = self._eq4(self.prms.amp_ana, self.prms.tau_ana, self.prms.aa_shape_ana, self.tim)
+        self.eq4_ext = self._eq4(self.prms.amp_ext, self.prms.tau_ext, self.prms.aa_shape_ext, self.tim)
+        self.eq4_anaS2extR = self._eq4(self.prms.amp_anaS2extR, self.prms.tau_anaS2extR, self.prms.aa_shape_anaS2extR, self.tim)
+        self.eq4_extS2anaR = self._eq4(self.prms.amp_extS2anaR, self.prms.tau_extS2anaR, self.prms.aa_shape_extS2anaR, self.tim)
 
 
 
@@ -264,54 +254,44 @@ class Sim:
         self.data = {}
         self.SR_data = {}
 
-        for condition_name, sens_comp, resp_comp, ana_comp in self.conditions:
+        for condition_name, cross_comp, comp_ana, ext_ana, comp_anaS2extR, comp_extS2anaR in self.conditions:
 
-            # Sensory Process (SP)
-            sens_dr_auto = (
-                sens_comp
-                * self.sens_eq4 # Mean Activation time E(X(t)) - Expected automatic evidence accumulation trajectory (https://link.springer.com/article/10.3758/s13423-023-02288-0)
-                * ((self.prms.sens_aa_shape - 1) / self.tim - 1 / self.prms.sens_tau)
-            ) # corresponding automatic drift rate
-            sens_drc, sens_sp = self._sens_drc(), self._sp()
+
+            drift_ana = self._drift_auto(comp_ana, self.eq4_ana, self.prms.aa_shape_ana, self.prms.tau_ana, self.tim)
+            drift_ext = self._drift_auto(ext_ana, self.eq4_ext, self.prms.aa_shape_ext, self.prms.tau_ext, self.tim)
+            drift_anaS2extR = self._drift_auto(comp_anaS2extR, self.eq4_anaS2extR, self.prms.aa_shape_anaS2extR, self.prms.tau_anaS2extR, self.tim)
+            drift_extS2anaR = self._drift_auto(comp_extS2anaR, self.eq4_extS2anaR, self.prms.aa_shape_extS2anaR, self.prms.tau_extS2anaR, self.tim)
+
+           
+           # SENSORY Process
+            sens_drc = self._sens_drc(cross_comp) # controlled drift rate 
+            sens_sp = self._sp() # starting point
 
             sens_data = _run_simulation_sensory(
-                sens_dr_auto,
+                drift_ana,
                 sens_sp,
                 sens_drc,
                 self.prms.t_max,
                 self.prms.sigma,
                 self.prms.sens_bnds,
                 self.n_trls
-            )
+            )           
 
-            # Response Process (RP)
-            resp_dr_auto = (
-                resp_comp
-                * self.resp_eq4
-                * ((self.prms.resp_aa_shape - 1) / self.tim - 1 / self.prms.resp_tau)
-            )
-
-
-            resp_dr_auto2 = (
-                ana_comp
-                * self.resp_eq4_ana
-                * ((self.prms.resp_aa_shape_ana - 1) / self.tim - 1 / self.prms.resp_tau_ana)
-            )
-
-            
-
-            resp_drc, resp_sp = self._resp_drc(), self._sp()
+            # RESPONSE Process
+            resp_drc =  self._resp_drc() # controlled drift rate
+            resp_sp = self._sp() # starting point
 
             resp_data = _run_simulation_response(
-                resp_dr_auto,
+                drift_ext,
+                drift_anaS2extR,
+                drift_extS2anaR,
                 resp_sp,
                 resp_drc,
+                sens_data,
                 self.prms.t_max,
                 self.prms.sigma,
                 self.prms.resp_bnds,
                 self.n_trls,
-                sens_data,
-                resp_dr_auto2,
                 self.prms.res_dist,
                 self.prms.res_mean,
                 self.prms.res_sd,
@@ -409,34 +389,26 @@ class Sim:
 
 
 
+    def _eq4(self, amp, tau, aa_shape, tim):
         '''
-        for comp in (1, -1):
-
-            drc = (
+        Mean Activation time E(X(t)) - Expected automatic evidence accumulation trajectory (https://link.springer.com/article/10.3758/s13423-023-02288-0)
+        '''
+        return (
+        amp
+        * np.exp(-tim / tau)
+        * (np.exp(1) * tim / (aa_shape - 1) / tau)
+        ** (aa_shape - 1)
+        )
+    
+    
+    def _drift_auto(self, comp, eq4, aa_shape, tau, tim):
+            # drift rate of automatic process
+            return (
                 comp
-                * self.eq4
-                * ((self.prms.aa_shape - 1) / self.tim - 1 / self.prms.tau)
-            )
-            dr, sp = self._dr(), self._sp()
+                * eq4 
+                * ((aa_shape - 1) / tim - 1 / tau)
+            ) # corresponding automatic drift rate
 
-            activation, trials, data = _run_simulation_full(
-                drc,
-                sp,
-                dr,
-                self.prms.t_max,
-                self.prms.sigma,
-                self.prms.res_dist,
-                self.prms.res_mean,
-                self.prms.res_sd,
-                self.prms.bnds,
-                self.n_trls,
-                self.n_trls_data,
-            )
-
-            self.xt.append(activation)
-            self.data_trials.append(trials)
-            self.data.append(data)
-            '''
 
 
     def _results_summary(self) -> None:
@@ -592,11 +564,18 @@ class Sim:
             )
             '''
         
-    def _sens_drc(self) -> np.ndarray:
+    def _sens_drc(self, cross_comp) -> np.ndarray:
         '''Controlled Drift Rate: Variable drift rate? Returns sensory drift rates based on the specified distribution.'''
+        
+        if cross_comp == 1:
+            drc = self.prms.sens_drc_comp
+        elif cross_comp == -1:
+            drc = self.prms.sens_drc_incomp
+        
+        
         if self.prms.dr_dist == 0:
             # constant between trial drift rate
-            return np.ones(self.n_trls) * self.prms.sens_drc
+            return np.ones(self.n_trls) * drc
         elif self.prms.dr_dist == 1:
             # between trial variablity in drift rate from beta distribution
             return self.rand_beta(self.prms.sens_dr_lim, self.prms.sens_dr_shape, self.n_trls)
@@ -639,63 +618,7 @@ class Sim:
                 + self.prms.sp_bias
             )
 
-'''
-@jit(nopython=True, parallel=True)
-def _run_simulation(
-    drc, sp, dr, t_max, sigma, res_dist_type, res_mean, res_sd, bnds, n_trls
-):
-'''
 
-# @jit(nopython=True, parallel=True)
-# def _run_simulation(
-#     dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls, sens_results=None, dr_auto2=None, res_dist_type=None, res_mean=None, res_sd=None
-# ):
-#     # Initializes arrays to store data and random residuals based on the specified distribution.
-#     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
-
-#     if res_dist_type is not None:
-#         if res_dist_type == 1:
-#             res_dist = np.random.normal(res_mean, res_sd, n_trls)
-#         else:
-#             width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
-#             res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
-#     else:
-#         res_dist = None
-
-
-#     # For each trial:
-#     for trl in prange(n_trls):
-
-#         trl_xt = sp[trl]
-
-#         # Checks sensory results (if provided) to determine the outcome direction.
-#         reverse_outcome = False
-#         if sens_results is not None:
-#             reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1
-
-#         for tp in range(0, t_max):
-
-#             if dr_auto2 is not None:
-#                 # auto + auto2 + controlled + wiener
-#                 trl_xt += dr_auto[tp] + dr_auto2[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
-                
-#             else:
-#                 # auto + controlled + wiener
-#                 trl_xt += dr_auto[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
-                
-#             # Determines the RT and outcome based on the accumulated evidence and boundary.
-#             if np.abs(trl_xt) > bnds:
-
-#                 if res_dist is not None:
-#                     data[0, trl] = tp + max(0, res_dist[trl]) # response process with
-#                 else:
-#                     data[0, trl] = tp # sensory process without residual time
-                
-#                 data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
-#                 break
-                
-
-#     return data
 
 
 
@@ -726,54 +649,73 @@ def _run_simulation_sensory(
     return data
 
 
+'''
+drift_ext,
+                drift_anaS2extR,
+                drift_extS2anaR,
+                resp_sp,
+                resp_drc,
+                sens_data,
+                self.prms.t_max,
+                self.prms.sigma,
+                self.prms.resp_bnds,
+                self.n_trls,
+                self.prms.res_dist,
+                self.prms.res_mean,
+                self.prms.res_sd,
+'''
+
+
 
 @jit(nopython=True, parallel=True)
 def _run_simulation_response(
-    dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls, sens_results=None, dr_auto2=None, res_dist_type=None, res_mean=None, res_sd=None
+    drift_ext,
+    drift_anaS2extR,
+    drift_extS2anaR,
+    resp_sp,
+    resp_drc,
+    sens_data,
+    t_max,
+    sigma,
+    resp_bnds,
+    n_trls,
+    res_dist,
+    res_mean,
+    res_sd,
 ):
     # Initializes arrays to store data and random residuals based on the specified distribution.
     data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
 
-    if res_dist_type == 1:
-        res_dist = np.random.normal(res_mean, res_sd, n_trls)
+    if res_dist == 1:
+        res_dist_t = np.random.normal(res_mean, res_sd, n_trls)
     else:
         width = max([0.01, np.sqrt((res_sd * res_sd / (1 / 12)))])
-        res_dist = np.random.uniform(res_mean - width, res_mean + width, n_trls)
+        res_dist_t = np.random.uniform(res_mean - width, res_mean + width, n_trls)
 
 
     # For each trial:
     for trl in prange(n_trls):
 
-        trl_xt = sp[trl]
+        trl_xt = resp_sp[trl]
 
         # Checks sensory results (if provided) to determine the outcome direction.
         # reverse_outcome = False
-        reverse_outcome = sens_results[1, trl] == 1 # resp boundaries flipped if sens == 1, which is an error
+        reverse_outcome = sens_data[1, trl] == 1 # resp boundaries flipped if sens == 1, which is an error
 
         for tp in range(0, t_max):
 
             # auto + auto2 + controlled + wiener
-            trl_xt += dr_auto[tp] + dr_auto2[tp] + dr_con[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+            trl_xt += drift_ext[tp] + drift_anaS2extR[tp] + drift_extS2anaR[tp] + resp_drc[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
                 
             # Determines the RT and outcome based on the accumulated evidence and boundary.
-            if np.abs(trl_xt) > bnds:
+            if np.abs(trl_xt) > resp_bnds:
 
-                data[0, trl] = tp + max(0, res_dist[trl]) # response process with
+                data[0, trl] = tp + max(0, res_dist_t[trl]) # response process with
                 data[1, trl] = (trl_xt < 0.0) if not reverse_outcome else (trl_xt >= 0.0)
                 break
                 
 
     return data
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1251,25 +1193,34 @@ class PrmsFit:
     amp, tau, aaShape, drc, bnds, resMean, and resSD (see Table 1).
     '''
     # default, min, max, free fit, free grid
+    
     # Sensory Process Parameters
-    sens_amp: tuple = (20, 0, 150, True, False)
-    sens_tau: tuple = (150, 5, 500, True, True)
-    sens_drc: tuple = (0.5, 0.1, 1.0, True, False)
+    amp_ana: tuple = (20, 0, 150, True, False)
+    tau_ana: tuple = (150, 5, 500, True, True)
+    aa_shape_ana: tuple = (2, 1, 5, True, False)
+
+    sens_drc_comp: tuple = (0.6, 0.1, 1.0, True, False)
+    sens_drc_incomp: tuple = (0.3, -0.3, 1.0, True, False)
+
     sens_bnds: tuple = (75, 20, 150, True, False)
-    sens_aa_shape: tuple = (2, 1, 5, True, False)
-    #sens_res_mean: tuple = (150, 50, 300, True, False)
-    #sens_res_sd: tuple = (30, 5, 100, True, False)
 
     # Response Process Parameters
-    resp_amp: tuple = (20, 0, 150, True, False)
-    resp_tau: tuple = (150, 5, 500, True, True)
+    amp_ext: tuple = (20, 0, 150, True, False)
+    tau_ext: tuple = (150, 5, 500, True, True)
+    aa_shape_ext: tuple = (2, 1, 5, True, False)
+
+    amp_anaS2extR: tuple = (20, 0, 150, True, False)
+    tau_anaS2extR: tuple = (150, 5, 500, True, True)
+    aa_shape_anaS2extR: tuple = (2, 1, 5, True, False)
+
+    amp_extS2anaR: tuple = (20, 0, 150, True, False)
+    tau_extS2anaR: tuple = (150, 5, 500, True, True)
+    aa_shape_extS2anaR: tuple = (2, 1, 5, True, False)
+
     resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
+
     resp_bnds: tuple = (75, 20, 150, True, False)
-    resp_aa_shape: tuple = (2, 1, 5, True, False)
-    
-    resp_amp_ana: tuple = (20, 0, 150, True, False)
-    resp_tau_ana: tuple = (150, 5, 500, True, True)
-    resp_aa_shape_ana: tuple = (2, 1, 5, True, False)
+
 
     # Shared Parameters
     res_mean: tuple = (150, 50, 300, True, False)
@@ -1277,6 +1228,7 @@ class PrmsFit:
 
     sp_shape: tuple = (3, 2, 4, False, False)
     sigma: tuple = (4, 1, 10, False, False)
+
 
 
 
@@ -1351,7 +1303,7 @@ class Fit:
         n_delta: int = 19,
         p_delta: tuple = (),
         t_delta: int = 1,
-        n_caf: int = 5,
+        n_caf: int = 9,
         cost_function="RMSE",
     ):
         self.res_ob = res_ob
@@ -1456,34 +1408,42 @@ class Fit:
         """Print summary of DmcFit."""
         print(
             # Sensory Process Parameters
-            f"sens_amp:{self.res_th.prms.sens_amp:4.1f}",
-            f"sens_tau:{self.res_th.prms.sens_tau:4.1f}",
-            f"sens_drc:{self.res_th.prms.sens_drc:4.2f}",
-            f"sens_bnds:{self.res_th.prms.sens_bnds:4.1f}",
-            f"sens_aa_shape:{self.res_th.prms.sens_aa_shape:4.1f}",
+            f"amp_ana: {self.res_th.prms.amp_ana:4.1f}",
+            f"tau_ana: {self.res_th.prms.tau_ana:4.1f}",
+            f"aa_shape_ana: {self.res_th.prms.aa_shape_ana:4.1f}",
+            f"sens_drc_comp: {self.res_th.prms.sens_drc_comp:4.2f}",
+            f"sens_drc_incomp: {self.res_th.prms.sens_drc_incomp:4.2f}",
+            f"sens_bnds: {self.res_th.prms.sens_bnds:4.1f}",
+            f"sp_lim_sens: {self.res_th.prms.sp_lim_sens}",  # Tuple, so not formatted
+
             # Response Process Parameters
-            f"resp_amp:{self.res_th.prms.resp_amp:4.1f}",
-            f"resp_tau:{self.res_th.prms.resp_tau:4.1f}",
-            f"resp_drc:{self.res_th.prms.resp_drc:4.2f}",
-            f"resp_bnds:{self.res_th.prms.resp_bnds:4.1f}",
-            f"resp_aa_shape:{self.res_th.prms.resp_aa_shape:4.1f}",
-
-
-            f"resp_amp_ana:{self.res_th.prms.resp_amp_ana:4.1f}",
-            f"resp_tau_ana:{self.res_th.prms.resp_tau_ana:4.1f}",
-            f"resp_aa_shape_ana:{self.res_th.prms.resp_aa_shape_ana:4.1f}",
-
-            f"res_mean:{self.res_th.prms.res_mean:4.0f}",
-            f"res_sd:{self.res_th.prms.res_sd:4.1f}",
+            f"amp_ext: {self.res_th.prms.amp_ext:4.1f}",
+            f"tau_ext: {self.res_th.prms.tau_ext:4.1f}",
+            f"aa_shape_ext: {self.res_th.prms.aa_shape_ext:4.1f}",
+            f"amp_anaS2extR: {self.res_th.prms.amp_anaS2extR:4.1f}",
+            f"tau_anaS2extR: {self.res_th.prms.tau_anaS2extR:4.1f}",
+            f"aa_shape_anaS2extR: {self.res_th.prms.aa_shape_anaS2extR:4.1f}",
+            f"amp_extS2anaR: {self.res_th.prms.amp_extS2anaR:4.1f}",
+            f"tau_extS2anaR: {self.res_th.prms.tau_extS2anaR:4.1f}",
+            f"aa_shape_extS2anaR: {self.res_th.prms.aa_shape_extS2anaR:4.1f}",
+            f"resp_drc: {self.res_th.prms.resp_drc:4.2f}",
+            f"resp_bnds: {self.res_th.prms.resp_bnds:4.1f}",
+            f"sp_lim_resp: {self.res_th.prms.sp_lim_resp}",  # Tuple, so not formatted
 
             # Shared Parameters
-            f"sp_shape:{self.res_th.prms.sp_shape:4.1f}",
-            f"sigma:{self.res_th.prms.sigma:4.1f}",
-            f"sp_bias:{self.res_th.prms.sp_bias:4.1f}",
-            f"dr_shape:{self.res_th.prms.dr_shape:4.1f}",
+            f"res_dist: {self.res_th.prms.res_dist}",
+            f"res_mean: {self.res_th.prms.res_mean:4.1f}",
+            f"res_sd: {self.res_th.prms.res_sd:4.1f}",
+            f"sp_dist: {self.res_th.prms.sp_dist}",
+            f"sp_shape: {self.res_th.prms.sp_shape:4.1f}",
+            f"sp_bias: {self.res_th.prms.sp_bias:4.1f}",
+            f"dr_dist: {self.res_th.prms.dr_dist}",
+            f"dr_lim: {self.res_th.prms.dr_lim}",  # Tuple, so not formatted
+            f"dr_shape: {self.res_th.prms.dr_shape:4.1f}",
             # Additional information
             f"| cost={self.cost_value:.2f}",
         )
+
 
 
     def return_result_prms(self) -> Prms:
@@ -1493,7 +1453,7 @@ class Fit:
         return self.res_th.prms
 
 
-    def table_summary(self) -> pd.DataFrame:
+    def table_summary(self) -> pd.DataFrame: # TODO
         """Table summary."""
         return pd.DataFrame(
             [
@@ -1568,65 +1528,7 @@ class Fit:
         self.res_th.prms.sp_lim_resp = (-self.res_th.prms.resp_bnds, self.res_th.prms.resp_bnds)
 
 
-    '''
-    @staticmethod
-    def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
 
-        def get_delta(delta_list, condition_name):
-            for cond, df in delta_list:
-                if cond == condition_name:
-                    return df
-            raise KeyError(f"Condition name {condition_name} not found in delta list.")
-
-
-        total_n_rt = 0
-        total_n_err = 0
-        total_cost = 0
-
-        # Conditions to be skipped
-        skip_conditions = ["exHULU", "anHULU"]
-
-        # Calculate total RT and error data points across all conditions
-        for condition_name_th, condition_df_th in res_th.caf.items():
-            condition_name_ob = condition_name_th  # Assuming the same condition name in observed data
-            condition_df_ob = res_ob.caf.get(condition_name_ob)
-
-            total_n_err += len(condition_df_ob) # caf len
-            if condition_name_ob not in skip_conditions:
-                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
-                total_n_rt += len(delta_df_ob["mean_comp"]) + len(delta_df_ob["mean_incomp"]) # delta len
-
-        # Calculate weights
-        weight_rt = total_n_rt / (total_n_rt + total_n_err)
-        weight_caf = (1 - weight_rt) * 1500
-
-        # Iterate through the CAF data for each condition
-        for condition_name_th, condition_df_th in res_th.caf.items():
-            condition_name_ob = condition_name_th  # Assuming the same condition name in observed data
-            condition_df_ob = res_ob.caf.get(condition_name_ob)
-
-            # Calculate the cost for the current CAF condition using RMSE
-            cost_caf = np.sqrt(np.mean((condition_df_th - condition_df_ob) ** 2))
-
-            # Add the weighted cost for CAF
-            total_cost += weight_caf * cost_caf
-
-            # If condition is not in skip_conditions, calculate the cost for delta
-            if condition_name_ob not in skip_conditions:
-                delta_df_th = get_delta(res_th.delta, condition_name_ob)
-                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
-
-                # Calculate the cost for the current delta condition using RMSE
-                if condition_name_ob in ["exHULU", "anHULU"]:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2))
-                else:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
-
-                # Add the weighted cost for delta
-                total_cost += weight_rt * cost_delta
-
-        return total_cost
-        '''
 
     @staticmethod
     def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
@@ -1675,38 +1577,7 @@ class Fit:
 
         
         total_cost = 0
-        # max_caf_cost = 0
-        # max_delta_cost = 0
-        # max_cdf_cost = 0
-
-        # # First, find the maximum costs for normalization purposes
-        # for condition_name_th, caf_df_th in res_th.caf.items():
-        #     condition_name_ob = condition_name_th
-
-        #     # CAF
-        #     caf_df_ob = res_ob.caf.get(condition_name_ob)
-        #     cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2))
-        #     max_caf_cost = max(max_caf_cost, cost_caf)
-
-        #     # CDF
-        #     df_th = get_simRT(res_th, condition_name_th)
-        #     cdf_df_th = df_th[0][(df_th[1] == 0)]
-        #     cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
-        #     cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob)
-        #     max_cdf_cost = max(max_cdf_cost, cost_cdf)
-
-        #     # DELTA
-        #     if condition_name_ob not in ["exHULU", "anHULU"]:
-        #         delta_df_th = get_delta(res_th.delta, condition_name_ob)
-        #         delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
-
-        #         if condition_name_ob in ["exHULU", "anHULU"]:
-        #             cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2))
-        #         else:
-        #             cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2))
-        #         max_delta_cost = max(max_delta_cost, cost_delta)
-
-        # Set weights for CAF, delta (RT), and CDF to be equal
+        
         weight_caf = 50
         weight_delta = 0.25
         weight_cdf = 25

@@ -1,8 +1,8 @@
 '''
-B010 - pydmcSR Fitting
+B010 - pydmcSR Fitting - E299 Version
 
 Author: Kenan Suljic
-Date: 31.08.2023
+Date: 05.09.2023
 
 '''
 
@@ -31,7 +31,7 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 
 # %% Parameters
-seed = 42
+seed = 12
 
 # %%
 pd.options.display.max_columns = 999
@@ -46,6 +46,20 @@ df = pd.read_csv('..\data\B010_pydmcVersion_150Cutoff_wo9-10-11-13-45-62.csv', u
 res_ob = Ob(df, n_caf=9, error_coding=(1,0))
 
 
+# %%
+prmsfit = PrmsFit()
+prmsfit.set_random_start_values(seed_value=seed)
+prms_dict = prmsfit.dict()
+prms_dict
+
+
+# %%
+prms = Prms(**prms_dict)
+sim = Sim(prms)
+df = sim2data(sim)
+res_ob = Ob(df, n_caf=9)
+
+
 
 # %%
 Plot(res_ob).caf()
@@ -56,22 +70,6 @@ Plot(res_ob).delta()
 # %%
 Plot(res_ob).pdf()
 # ----------------- #
-
-
-# %%
-prmsfit = PrmsFit()
-prmsfit.set_random_start_values(seed_value=seed)
-prms_dict = prmsfit.dict()
-prms_dict
-
-
-
-
-# %%
-prms = Prms(**prms_dict)
-sim = Sim(prms)
-df = sim2data(sim)
-res_ob = Ob(df, n_caf=9)
 
 
 
@@ -527,7 +525,7 @@ fname = 'Fit_V1_dr0_sp0_'+date_string+'_'+time_string+'.pkl'
 
 # Saving the objects:
 with open('../Fits/'+fname, 'wb') as f: 
-    pickle.dump([fit_diff, fit_nelder, seed], f)
+    pickle.dump([fit_diff, seed], f)
 
 
 # %% 
