@@ -31,7 +31,7 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 
 # %% Parameters
-seed = 12
+seed = 42
 
 # %%
 pd.options.display.max_columns = 999
@@ -283,19 +283,8 @@ for ax in axes.axes.flat:
 
 # %%
 # Define the widget function
-def widget_function(sens_amp, sens_tau, sens_drc, sens_bnds, sens_aa_shape, 
-                    resp_amp, resp_tau, resp_drc, resp_bnds, resp_aa_shape,
-                    resp_amp_ana, resp_tau_ana, resp_aa_shape_ana,
-                    res_mean, res_sd,
-                    sp_shape, sigma, sp_bias, dr_shape):
-    
-    para = Prms(
-        sens_amp=sens_amp, sens_tau=sens_tau, sens_drc=sens_drc, sens_bnds=sens_bnds, sens_aa_shape=sens_aa_shape,
-        resp_amp=resp_amp, resp_tau=resp_tau, resp_drc=resp_drc, resp_bnds=resp_bnds, resp_aa_shape=resp_aa_shape, 
-        resp_amp_ana=resp_amp_ana, resp_tau_ana=resp_tau_ana, resp_aa_shape_ana=resp_aa_shape_ana,
-        res_mean=res_mean, res_sd=res_sd,
-        sp_shape=sp_shape, sigma=sigma, sp_bias=sp_bias, dr_shape=dr_shape
-    )
+def model_check(para):
+    # Rest of the function remains the same, assuming Prms and other functions are defined elsewhere
 
     df = res_ob.data
     df['Source'] = 'Og'
@@ -435,25 +424,27 @@ fit.best_cost
 
 # %%
 # Parameters = Prms(**parameters)
-para_dict = {'sens_amp': 71.18560180328221,
- 'sens_tau': 330.4488888153414,
- 'sens_drc': 0.6997694240123543,
- 'sens_bnds': 38.53804588029781,
- 'sens_aa_shape': 1.0434417723602718,
- 'resp_amp': 56.21317380950466,
- 'resp_tau': 140.65382904177403,
- 'resp_drc': 0.8293132470115754,
- 'resp_bnds': 109.777044895029,
- 'resp_aa_shape': 3.4058281549109326,
- 'resp_amp_ana': 83.7285071630022,
- 'resp_tau_ana': 332.3539375066405,
- 'resp_aa_shape_ana': 1.581211178840412,
- 'res_mean': 160.01369798119245,
- 'res_sd': 20.41539562694442,
- 'sp_shape': 3,
- 'sigma': 4,
- 'sp_bias':0,
- 'dr_shape':3}
+# para_dict = {'sens_amp': 71.18560180328221,
+#  'sens_tau': 330.4488888153414,
+#  'sens_drc': 0.6997694240123543,
+#  'sens_bnds': 38.53804588029781,
+#  'sens_aa_shape': 1.0434417723602718,
+#  'resp_amp': 56.21317380950466,
+#  'resp_tau': 140.65382904177403,
+#  'resp_drc': 0.8293132470115754,
+#  'resp_bnds': 109.777044895029,
+#  'resp_aa_shape': 3.4058281549109326,
+#  'resp_amp_ana': 83.7285071630022,
+#  'resp_tau_ana': 332.3539375066405,
+#  'resp_aa_shape_ana': 1.581211178840412,
+#  'res_mean': 160.01369798119245,
+#  'res_sd': 20.41539562694442,
+#  'sp_shape': 3,
+#  'sigma': 4,
+#  'sp_bias':0,
+#  'dr_shape':3}
+
+para_dict = fit_diff.best_prms_out.__dict__
 
 Parameters = Prms(**para_dict)
 sim = Sim(Parameters, n_caf=9)
@@ -468,33 +459,33 @@ Fit.calculate_cost_value_rmse(sim, res_ob)
 # %%
 import inspect
 
-# para_dict = fit_nelder.best_prms_out.__dict__
-para_dict = {'sens_amp': 20,
- 'sens_tau': 100,
- 'sens_drc': 0.31590874978190203,
- 'sens_bnds': 71.63633510731007,
- 'sens_aa_shape': 1.8,
- 'sp_lim_sens': (-71.63633510731007, 71.63633510731007),
- 'resp_amp': 150,
- 'resp_tau': 450,
- 'resp_drc': 0.4,
- 'resp_bnds': 75.66747024929097,
- 'resp_aa_shape': 3.5,
- 'resp_amp_ana': 15,
- 'resp_tau_ana': 200,
- 'resp_aa_shape_ana': 2.2,
- 'sp_lim_resp': (-75.66747024929097, 75.66747024929097),
- 'res_dist': 1,
- 'res_mean': 180,
- 'res_sd': 27.43828746055531,
- 'sp_shape': 3,
- 'sigma': 4,
- 't_max': 2000,
- 'sp_dist': 0,
- 'sp_bias': 0.0,
- 'dr_dist': 0,
- 'dr_lim': (0.1, 0.7),
- 'dr_shape': 3}
+para_dict = fit_diff.best_prms_out.__dict__
+# para_dict = {'sens_amp': 20,
+#  'sens_tau': 100,
+#  'sens_drc': 0.31590874978190203,
+#  'sens_bnds': 71.63633510731007,
+#  'sens_aa_shape': 1.8,
+#  'sp_lim_sens': (-71.63633510731007, 71.63633510731007),
+#  'resp_amp': 150,
+#  'resp_tau': 450,
+#  'resp_drc': 0.4,
+#  'resp_bnds': 75.66747024929097,
+#  'resp_aa_shape': 3.5,
+#  'resp_amp_ana': 15,
+#  'resp_tau_ana': 200,
+#  'resp_aa_shape_ana': 2.2,
+#  'sp_lim_resp': (-75.66747024929097, 75.66747024929097),
+#  'res_dist': 1,
+#  'res_mean': 180,
+#  'res_sd': 27.43828746055531,
+#  'sp_shape': 3,
+#  'sigma': 4,
+#  't_max': 2000,
+#  'sp_dist': 0,
+#  'sp_bias': 0.0,
+#  'dr_dist': 0,
+#  'dr_lim': (0.1, 0.7),
+#  'dr_shape': 3}
 
 function_parameters = inspect.signature(widget_function).parameters
 filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
@@ -521,7 +512,7 @@ date_string = now.strftime("%Y-%m-%d")  # For date (year, month, day)
 time_string = now.strftime("%Hh_%Mmin")     # For time (hour, minute)
 
 
-fname = 'Fit_V1_dr0_sp0_'+date_string+'_'+time_string+'.pkl'
+fname = 'Fit_V2_E299_dr0_sp0_'+date_string+'_'+time_string+'.pkl'
 
 # Saving the objects:
 with open('../Fits/'+fname, 'wb') as f: 
@@ -529,9 +520,12 @@ with open('../Fits/'+fname, 'wb') as f:
 
 
 # %% 
+
+fname = 'Fit_V2_E299_dr0_sp0_2023-09-07_16h_16min.pkl'
+
 # Getting back the objects:
 with open('../Fits/'+fname, 'rb') as f: 
-    fit_diff, fit_nelder, seed = pickle.load(f)
+    fit_diff, seed = pickle.load(f)
 
 
 
