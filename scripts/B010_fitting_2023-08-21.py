@@ -419,10 +419,12 @@ fit.fit_data(maxiter=5000, disp=True)
 
 
 # %%
-para = fit.best_prms_out
-fit.best_cost
+para = fit_diff.best_prms_out
+fit_diff.best_cost
 
 # %%
+model_check(fit_diff.best_prms_out)
+
 # Parameters = Prms(**parameters)
 # para_dict = {'sens_amp': 71.18560180328221,
 #  'sens_tau': 330.4488888153414,
@@ -444,11 +446,11 @@ fit.best_cost
 #  'sp_bias':0,
 #  'dr_shape':3}
 
-para_dict = fit_diff.best_prms_out.__dict__
+# para_dict = fit_diff.best_prms_out.__dict__
 
-Parameters = Prms(**para_dict)
-sim = Sim(Parameters, n_caf=9)
-Fit.calculate_cost_value_rmse(sim, res_ob)
+# Parameters = Prms(**para_dict)
+# sim = Sim(Parameters, n_caf=9)
+# Fit.calculate_cost_value_rmse(sim, res_ob)
 
 # ----------------- #
 
@@ -457,9 +459,11 @@ sim = Sim(fit_diff.best_prms_out, n_caf=9)
 Fit.calculate_cost_value_rmse(sim, res_ob)
 
 # %%
-import inspect
+# import inspect
 
 para_dict = fit_diff.best_prms_out.__dict__
+para_dict
+
 # para_dict = {'sens_amp': 20,
 #  'sens_tau': 100,
 #  'sens_drc': 0.31590874978190203,
@@ -487,10 +491,10 @@ para_dict = fit_diff.best_prms_out.__dict__
 #  'dr_lim': (0.1, 0.7),
 #  'dr_shape': 3}
 
-function_parameters = inspect.signature(widget_function).parameters
-filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
+# function_parameters = inspect.signature(model_check).parameters
+# filtered_args = {k: para_dict[k] for k in function_parameters if k in para_dict}
 
-widget_function(**filtered_args)
+# model_check(**filtered_args)
 
 
 # %%
@@ -521,7 +525,7 @@ with open('../Fits/'+fname, 'wb') as f:
 
 # %% 
 
-fname = 'Fit_V2_E299_dr0_sp0_2023-09-07_16h_16min.pkl'
+fname = 'Fit_V2_E299_dr0_sp0_2023-09-09_06h_35min.pkl'
 
 # Getting back the objects:
 with open('../Fits/'+fname, 'rb') as f: 

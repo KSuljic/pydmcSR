@@ -108,12 +108,14 @@ class Prms:
     res_sd: float = 30
 
     # starting point
-    sp_dist: int = 0 # 0=constant
+    sp_dist: int = 1 # 0=constant, 1=normal
+    sp_sd: int = 0.1
     sp_shape: float = 3
     sp_bias: float = 0.0
 
     # drift rate
-    dr_dist: int = 0 # 0=constant
+    dr_dist: int = 1 # 0=constant, 1=normal
+    drc_sd: int = 0.1
     dr_lim: tuple = (0.1, 0.7)
     dr_shape: float = 3
 
@@ -577,21 +579,25 @@ class Sim:
             # constant between trial drift rate
             return np.ones(self.n_trls) * drc
         elif self.prms.dr_dist == 1:
+            # normal distribution
+            return np.random.normal(drc, self.prms.drc_sd, self.n_trls)
+        elif self.prms.dr_dist == 2:
             # between trial variablity in drift rate from beta distribution
             return self.rand_beta(self.prms.sens_dr_lim, self.prms.sens_dr_shape, self.n_trls)
-        elif self.prms.dr_dist == 2:
+        elif self.prms.dr_dist == 3:
             # between trial variablity in drift rate from uniform
             return np.random.uniform(self.prms.sens_dr_lim[0], self.prms.sens_dr_lim[1], self.n_trls)
-        # elif self.prms.dr_dist == 3:
-        #     return np.random.normal(self.prms.sens_drc, self.prms.sens_drcSD, self.n_trls)
+        
 
     def _resp_drc(self) -> np.ndarray:
         '''Controlled Drift Rate: Variable drift rate? Returns response drift rates based on the specified distribution.'''
         if self.prms.dr_dist == 0:
             return np.ones(self.n_trls) * self.prms.resp_drc
         elif self.prms.dr_dist == 1:
-            return self.rand_beta(self.prms.resp_dr_lim, self.prms.resp_dr_shape, self.n_trls)
+            return np.random.normal(self.prms.resp_drc, self.prms.drc_sd, self.n_trls)
         elif self.prms.dr_dist == 2:
+            return self.rand_beta(self.prms.resp_dr_lim, self.prms.resp_dr_shape, self.n_trls)
+        elif self.prms.dr_dist == 3:
             return np.random.uniform(self.prms.resp_dr_lim[0], self.prms.resp_dr_lim[1], self.n_trls)
 
 
@@ -601,7 +607,9 @@ class Sim:
         if self.prms.sp_dist == 0:
             # constant between trial starting point
             return np.zeros(self.n_trls) + self.prms.sp_bias
-        if self.prms.sp_dist == 1:
+        elif self.prms.sp_dist == 1:
+            return np.random.normal(0+self.prms.sp_bias, self.prms.sp_sd, self.n_trls)
+        elif self.prms.sp_dist == 2:
             # between trial variablity in starting point from beta distribution
             return (
                 self.rand_beta(
@@ -611,7 +619,7 @@ class Sim:
                 )
                 + self.prms.sp_bias
             )
-        if self.prms.sp_dist == 2:
+        elif self.prms.sp_dist == 3:
             # between trial variablity in starting point from uniform distribution
             return (
                 np.random.uniform(self.prms.sp_lim[0], self.prms.sp_lim[1], self.n_trls)
@@ -1200,7 +1208,7 @@ class PrmsFit:
     aa_shape_ana: tuple = (2, 1, 5, True, False)
 
     sens_drc_comp: tuple = (0.6, 0.1, 1.0, True, False)
-    sens_drc_incomp: tuple = (0.3, -0.3, 1.0, True, False)
+    sens_drc_incomp: tuple = (0.3, 0, 1.0, True, False)
 
     sens_bnds: tuple = (75, 20, 150, True, False)
 
@@ -1226,6 +1234,10 @@ class PrmsFit:
     res_mean: tuple = (150, 50, 300, True, False)
     res_sd: tuple = (30, 5, 100, True, False)
 
+    drc_sd: tuple = (0.1, 0, 1.0, True, False)
+    sp_sd: tuple = (0.1, 0, 1.0, True, False)
+
+    # fixed
     sp_shape: tuple = (3, 2, 4, False, False)
     sigma: tuple = (4, 1, 10, False, False)
 
@@ -1407,6 +1419,7 @@ class Fit:
     def print_summary(self) -> None:
         """Print summary of DmcFit."""
         print(
+            f"| cost={self.cost_value:.4f}",
             # Sensory Process Parameters
             f"amp_ana: {self.res_th.prms.amp_ana:4.1f}",
             f"tau_ana: {self.res_th.prms.tau_ana:4.1f}",
@@ -1430,10 +1443,15 @@ class Fit:
             f"resp_bnds: {self.res_th.prms.resp_bnds:4.1f}",
             f"sp_lim_resp: {self.res_th.prms.sp_lim_resp}",  # Tuple, so not formatted
 
+            f"drc_sd: {self.res_th.prms.res_sd:4.1f}",
+
             # Shared Parameters
             f"res_dist: {self.res_th.prms.res_dist}",
             f"res_mean: {self.res_th.prms.res_mean:4.1f}",
             f"res_sd: {self.res_th.prms.res_sd:4.1f}",
+
+            f"sp_sd: {self.res_th.prms.res_sd:4.1f}",
+
             f"sp_dist: {self.res_th.prms.sp_dist}",
             f"sp_shape: {self.res_th.prms.sp_shape:4.1f}",
             f"sp_bias: {self.res_th.prms.sp_bias:4.1f}",
@@ -1441,7 +1459,7 @@ class Fit:
             f"dr_lim: {self.res_th.prms.dr_lim}",  # Tuple, so not formatted
             f"dr_shape: {self.res_th.prms.dr_shape:4.1f}",
             # Additional information
-            f"| cost={self.cost_value:.2f}",
+
         )
 
 
@@ -1578,9 +1596,9 @@ class Fit:
         
         total_cost = 0
         
-        weight_caf = 50
-        weight_delta = 0.25
-        weight_cdf = 25
+        # weight_caf = 50
+        # weight_delta = 0.25
+        # weight_cdf = 25
 
 
         # Now, compute the costs and normalize them
@@ -1590,14 +1608,14 @@ class Fit:
             # CAF
             caf_df_ob = res_ob.caf.get(condition_name_ob)
             cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) # / max_caf_cost
-            total_cost += weight_caf * cost_caf
+            # total_cost += weight_caf * cost_caf
 
             # CDF
             df_th = get_simRT(res_th, condition_name_th)
             cdf_df_th = df_th[0][(df_th[1] == 0)]
             cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
             cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) # / max_cdf_cost
-            total_cost += weight_cdf * cost_cdf
+            # total_cost += weight_cdf * cost_cdf
 
             # DELTA
             if condition_name_ob not in ["exHULU", "anHULU"]:
@@ -1608,7 +1626,11 @@ class Fit:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) #/ max_delta_cost
                 else:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) # / max_delta_cost
-                total_cost += weight_delta * cost_delta
+                # total_cost += weight_delta * cost_delta
+
+                # calculating the geometric mean (because of scaling of cost values)
+                cost_vals = [cost_caf, cost_cdf, cost_delta]
+                total_cost = np.prod(cost_vals) ** (1/len(cost_vals))
 
         return total_cost
 
