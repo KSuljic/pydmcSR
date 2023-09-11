@@ -1235,7 +1235,7 @@ class PrmsFit:
     res_sd: tuple = (30, 5, 100, True, False)
 
     drc_sd: tuple = (0.1, 0, 1.0, True, False)
-    sp_sd: tuple = (0.1, 0, 1.0, True, False)
+    sp_sd: tuple = (20, 0, 150, True, False)
 
     # fixed
     sp_shape: tuple = (3, 2, 4, False, False)
@@ -1443,14 +1443,14 @@ class Fit:
             f"resp_bnds: {self.res_th.prms.resp_bnds:4.1f}",
             f"sp_lim_resp: {self.res_th.prms.sp_lim_resp}",  # Tuple, so not formatted
 
-            f"drc_sd: {self.res_th.prms.res_sd:4.1f}",
+            f"drc_sd: {self.res_th.prms.drc_sd:4.1f}",
 
             # Shared Parameters
             f"res_dist: {self.res_th.prms.res_dist}",
             f"res_mean: {self.res_th.prms.res_mean:4.1f}",
             f"res_sd: {self.res_th.prms.res_sd:4.1f}",
 
-            f"sp_sd: {self.res_th.prms.res_sd:4.1f}",
+            f"sp_sd: {self.res_th.prms.sp_sd:4.1f}",
 
             f"sp_dist: {self.res_th.prms.sp_dist}",
             f"sp_shape: {self.res_th.prms.sp_shape:4.1f}",
