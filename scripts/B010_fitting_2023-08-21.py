@@ -31,7 +31,7 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 
 # %% Parameters
-seed = 42
+seed = 40
 
 # %%
 pd.options.display.max_columns = 999
@@ -39,7 +39,7 @@ pd.options.display.max_columns = 999
 # -------------- #
 
 # %%
-df = pd.read_csv('..\data\B010_pydmcVersion_150Cutoff_wo9-10-11-13-45-62.csv', usecols=lambda col: col not in ['Unnamed: 0'])
+df = pd.read_csv('data\B010_pydmcVersion_150Cutoff_wo9-10-11-13-45-62.csv', usecols=lambda col: col not in ['Unnamed: 0'])
 
 
 # %%
@@ -84,8 +84,9 @@ Plot(res_ob).pdf()
 fit_diff = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', disp=True, maxiter=700, seed=seed)
+fit_diff.fit_data('differential_evolution', disp=True, maxiter=300, seed=seed)
 
+# | cost=0.1155 amp_ana: 98.8 tau_ana: 253.4 aa_shape_ana:  2.5 sens_drc_comp: 0.38 sens_drc_incomp: 0.12 sens_bnds: 61.6 sp_lim_sens: (-61.62525113683415, 61.62525113683415) amp_ext: 109.8 tau_ext: 203.0 aa_shape_ext:  2.3 amp_anaS2extR: 108.4 tau_anaS2extR: 209.6 aa_shape_anaS2extR:  2.2 amp_extS2anaR: 98.1 tau_extS2anaR: 314.1 aa_shape_extS2anaR:  3.8 resp_drc: 0.72 resp_bnds: 131.2 sp_lim_resp: (-131.17845491535212, 131.17845491535212) drc_sd:  0.2 res_dist: 1 res_mean: 209.9 res_sd: 72.2 sp_sd: 29.1 sp_dist: 1 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 1 dr_lim: (0.1, 0.7) dr_shape:  3.0
 
 # ----------------- #
 
@@ -423,7 +424,7 @@ para = fit_diff.best_prms_out
 fit_diff.best_cost
 
 # %%
-model_check(fit_diff.best_prms_out)
+model_check(para)
 
 # Parameters = Prms(**parameters)
 # para_dict = {'sens_amp': 71.18560180328221,
@@ -516,10 +517,10 @@ date_string = now.strftime("%Y-%m-%d")  # For date (year, month, day)
 time_string = now.strftime("%Hh_%Mmin")     # For time (hour, minute)
 
 
-fname = 'Fit_V2_E299_dr0_sp0_'+date_string+'_'+time_string+'.pkl'
+fname = 'Fit_V2_E299_dr1_sp0_'+date_string+'_'+time_string+'.pkl'
 
 # Saving the objects:
-with open('../Fits/'+fname, 'wb') as f: 
+with open('Fits/'+fname, 'wb') as f: 
     pickle.dump([fit_diff, seed], f)
 
 

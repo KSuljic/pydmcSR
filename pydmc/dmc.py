@@ -108,7 +108,7 @@ class Prms:
     res_sd: float = 30
 
     # starting point
-    sp_dist: int = 1 # 0=constant, 1=normal
+    sp_dist: int = 0 # 0=constant, 1=normal
     sp_sd: int = 0.1
     sp_shape: float = 3
     sp_bias: float = 0.0
@@ -658,20 +658,37 @@ def _run_simulation_sensory(
 
 
 '''
-drift_ext,
-                drift_anaS2extR,
-                drift_extS2anaR,
-                resp_sp,
-                resp_drc,
-                sens_data,
-                self.prms.t_max,
-                self.prms.sigma,
-                self.prms.resp_bnds,
-                self.n_trls,
-                self.prms.res_dist,
-                self.prms.res_mean,
-                self.prms.res_sd,
+@jit(nopython=True, parallel=True)
+def _run_simulation_sensory_ou(
+    dr_auto, sp, dr_con, t_max, sigma, bnds, n_trls, mu, theta, dt
+):
+    # Initializes arrays to store data and random residuals based on the specified distribution.
+    data = np.vstack((np.ones(n_trls) * t_max, np.zeros(n_trls)))
+
+    # For each trial:
+    for trl in prange(n_trls):
+
+        trl_xt = sp[trl]
+
+        for tp in range(0, t_max):
+
+            # auto + controlled + OU process
+            delta_xt = (dr_auto[tp] + dr_con[trl] + theta * (mu - trl_xt) * dt)
+            trl_xt += delta_xt + (sigma * np.sqrt(dt) * np.random.randn())
+
+            # Determines the RT and outcome based on the accumulated evidence and boundary.
+            if np.abs(trl_xt) > bnds:
+
+                data[0, trl] = tp # sensory process without residual time                
+                data[1, trl] = trl_xt < 0.0
+                break
+                
+    return data
+
+
 '''
+
+
 
 
 
