@@ -529,7 +529,7 @@ with open('Fits/'+fname, 'wb') as f:
 fname = 'Fit_V2_E299_dr0_sp0_2023-09-09_06h_35min.pkl'
 
 # Getting back the objects:
-with open('../Fits/'+fname, 'rb') as f: 
+with open('Fits/'+fname, 'rb') as f: 
     fit_diff, seed = pickle.load(f)
 
 
