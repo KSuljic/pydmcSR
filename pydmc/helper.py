@@ -1,6 +1,12 @@
 import pandas as pd
 import numpy as np
+
 from .dmc import PrmsFit
+from pydmc import Sim, Fit, Plot
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 def generate_test_data(n_samples_per_condition=1000, correct_response_rate=(0.80, 0.90)):
     np.random.seed(42)
@@ -150,3 +156,39 @@ def set_best_parameters(fit_diff) -> PrmsFit:
     prmsfit_adv.set_start_values(**best_prms_dict)
 
     return prmsfit_adv
+
+
+
+# Define the widget function
+def model_check(res_ob, para):
+    # Rest of the function remains the same, assuming Prms and other functions are defined elsewhere
+
+    df = res_ob.data
+    df['Source'] = 'Og'
+       
+    sim = Sim(para, n_trls=11000, n_caf=9)
+    df_fit = sim2data(sim)
+    print(Fit.calculate_cost_value_rmse(sim, res_ob))
+
+
+    df_fit.insert(len(df_fit.columns), 'Source', 'Fit')
+
+    # df_fit_sub = df_fit.groupby('condition').sample(n=11982)
+    df_comp = pd.concat([df, df_fit])
+
+    axes = sns.displot(data=df_comp,
+                       x='RT',
+                       hue='Source',
+                       col='Error',
+                       row='condition',
+                       kind='kde')
+    
+    for ax in axes.axes.flat:
+        ax.set_xticks(np.arange(0, 2500, 100))
+        ax.set_xticklabels(ax.get_xticks(), rotation=90)
+        ax.grid(True, axis='x')
+
+    plt.show()
+
+    Plot(sim).caf()
+    Plot(sim).delta()

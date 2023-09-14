@@ -1627,12 +1627,12 @@ class Fit:
             cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) # / max_caf_cost
             # total_cost += weight_caf * cost_caf
 
-            # CDF
-            df_th = get_simRT(res_th, condition_name_th)
-            cdf_df_th = df_th[0][(df_th[1] == 0)]
-            cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
-            cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) # / max_cdf_cost
-            # total_cost += weight_cdf * cost_cdf
+            # # CDF
+            # df_th = get_simRT(res_th, condition_name_th)
+            # cdf_df_th = df_th[0][(df_th[1] == 0)]
+            # cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
+            # cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) # / max_cdf_cost
+            # # total_cost += weight_cdf * cost_cdf
 
             # DELTA
             if condition_name_ob not in ["exHULU", "anHULU"]:
@@ -1646,7 +1646,7 @@ class Fit:
                 # total_cost += weight_delta * cost_delta
 
                 # calculating the geometric mean (because of scaling of cost values)
-                cost_vals = [cost_caf, cost_cdf, cost_delta]
+                cost_vals = [cost_caf, cost_delta] # cost_cdf removed
                 total_cost = np.prod(cost_vals) ** (1/len(cost_vals))
 
         return total_cost
