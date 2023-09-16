@@ -8,7 +8,7 @@ Cognitive Psychology, 78, 148-174.
 
 
 Author: Kenan Suljic
-Date: 08.08.2023
+Date: 14.09.2023
 
 """
 import copy
@@ -92,9 +92,9 @@ class Prms:
     tau_anaS2extR: float = 30  # tau of anatomical conflict
     aa_shape_anaS2extR: float = 2 # shape parameter of anat
 
-    amp_extS2anaR: float = 20 # Amplitude of anatomical conflict
-    tau_extS2anaR: float = 30  # tau of anatomical conflict
-    aa_shape_extS2anaR: float = 2 # shape parameter of anat
+    # amp_extS2anaR: float = 20 # Amplitude of anatomical conflict
+    # tau_extS2anaR: float = 30  # tau of anatomical conflict
+    # aa_shape_extS2anaR: float = 2 # shape parameter of anat
 
     resp_drc: float = 0.5
     resp_bnds: float = 75
@@ -238,7 +238,7 @@ class Sim:
         self.eq4_ana = self._eq4(self.prms.amp_ana, self.prms.tau_ana, self.prms.aa_shape_ana, self.tim)
         self.eq4_ext = self._eq4(self.prms.amp_ext, self.prms.tau_ext, self.prms.aa_shape_ext, self.tim)
         self.eq4_anaS2extR = self._eq4(self.prms.amp_anaS2extR, self.prms.tau_anaS2extR, self.prms.aa_shape_anaS2extR, self.tim)
-        self.eq4_extS2anaR = self._eq4(self.prms.amp_extS2anaR, self.prms.tau_extS2anaR, self.prms.aa_shape_extS2anaR, self.tim)
+        # self.eq4_extS2anaR = self._eq4(self.prms.amp_extS2anaR, self.prms.tau_extS2anaR, self.prms.aa_shape_extS2anaR, self.tim)
 
 
 
@@ -262,7 +262,7 @@ class Sim:
             drift_ana = self._drift_auto(comp_ana, self.eq4_ana, self.prms.aa_shape_ana, self.prms.tau_ana, self.tim)
             drift_ext = self._drift_auto(ext_ana, self.eq4_ext, self.prms.aa_shape_ext, self.prms.tau_ext, self.tim)
             drift_anaS2extR = self._drift_auto(comp_anaS2extR, self.eq4_anaS2extR, self.prms.aa_shape_anaS2extR, self.prms.tau_anaS2extR, self.tim)
-            drift_extS2anaR = self._drift_auto(comp_extS2anaR, self.eq4_extS2anaR, self.prms.aa_shape_extS2anaR, self.prms.tau_extS2anaR, self.tim)
+            # drift_extS2anaR = self._drift_auto(comp_extS2anaR, self.eq4_extS2anaR, self.prms.aa_shape_extS2anaR, self.prms.tau_extS2anaR, self.tim)
 
            
            # SENSORY Process
@@ -286,7 +286,7 @@ class Sim:
             resp_data = _run_simulation_response(
                 drift_ext,
                 drift_anaS2extR,
-                drift_extS2anaR,
+                # drift_extS2anaR,
                 resp_sp,
                 resp_drc,
                 sens_data,
@@ -696,7 +696,7 @@ def _run_simulation_sensory_ou(
 def _run_simulation_response(
     drift_ext,
     drift_anaS2extR,
-    drift_extS2anaR,
+    # drift_extS2anaR,
     resp_sp,
     resp_drc,
     sens_data,
@@ -730,7 +730,7 @@ def _run_simulation_response(
         for tp in range(0, t_max):
 
             # auto + auto2 + controlled + wiener
-            trl_xt += drift_ext[tp] + drift_anaS2extR[tp] + drift_extS2anaR[tp] + resp_drc[trl] + (sigma * np.random.randn()) # evidence accumulation can be modeled as a single combined Wiener process
+            trl_xt += drift_ext[tp] + drift_anaS2extR[tp] + resp_drc[trl] + (sigma * np.random.randn()) # + drift_extS2anaR[tp] - evidence accumulation can be modeled as a single combined Wiener process
                 
             # Determines the RT and outcome based on the accumulated evidence and boundary.
             if np.abs(trl_xt) > resp_bnds:
@@ -1238,9 +1238,9 @@ class PrmsFit:
     tau_anaS2extR: tuple = (150, 5, 500, True, True)
     aa_shape_anaS2extR: tuple = (2, 1, 5, True, False)
 
-    amp_extS2anaR: tuple = (20, 0, 150, True, False)
-    tau_extS2anaR: tuple = (150, 5, 500, True, True)
-    aa_shape_extS2anaR: tuple = (2, 1, 5, True, False)
+    # amp_extS2anaR: tuple = (20, 0, 150, True, False)
+    # tau_extS2anaR: tuple = (150, 5, 500, True, True)
+    # aa_shape_extS2anaR: tuple = (2, 1, 5, True, False)
 
     resp_drc: tuple = (0.5, 0.1, 1.0, True, False)
 
@@ -1252,7 +1252,7 @@ class PrmsFit:
     res_sd: tuple = (30, 5, 100, True, False)
 
     drc_sd: tuple = (0.1, 0, 1.0, True, False)
-    sp_sd: tuple = (20, 0, 150, True, False)
+    sp_sd: tuple = (20, 0, 150, False, False)
 
     # fixed
     sp_shape: tuple = (3, 2, 4, False, False)
@@ -1453,9 +1453,9 @@ class Fit:
             f"amp_anaS2extR: {self.res_th.prms.amp_anaS2extR:4.1f}",
             f"tau_anaS2extR: {self.res_th.prms.tau_anaS2extR:4.1f}",
             f"aa_shape_anaS2extR: {self.res_th.prms.aa_shape_anaS2extR:4.1f}",
-            f"amp_extS2anaR: {self.res_th.prms.amp_extS2anaR:4.1f}",
-            f"tau_extS2anaR: {self.res_th.prms.tau_extS2anaR:4.1f}",
-            f"aa_shape_extS2anaR: {self.res_th.prms.aa_shape_extS2anaR:4.1f}",
+            # f"amp_extS2anaR: {self.res_th.prms.amp_extS2anaR:4.1f}",
+            # f"tau_extS2anaR: {self.res_th.prms.tau_extS2anaR:4.1f}",
+            # f"aa_shape_extS2anaR: {self.res_th.prms.aa_shape_extS2anaR:4.1f}",
             f"resp_drc: {self.res_th.prms.resp_drc:4.2f}",
             f"resp_bnds: {self.res_th.prms.resp_bnds:4.1f}",
             f"sp_lim_resp: {self.res_th.prms.sp_lim_resp}",  # Tuple, so not formatted

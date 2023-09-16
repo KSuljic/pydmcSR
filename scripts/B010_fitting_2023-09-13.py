@@ -31,7 +31,7 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 
 # %% Parameters
-seed = 42
+seed = 10
 
 # %%
 pd.options.display.max_columns = 999
@@ -74,10 +74,10 @@ Plot(res_ob).pdf()
 
 # -------------- #
 # %%
-fit_diff = Fit(res_ob, n_trls=2000, start_vals=prmsfit, n_caf=9)
+fit_diff = Fit(res_ob, n_trls=1000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', disp=True, maxiter=300, seed=seed)
+fit_diff.fit_data('differential_evolution', disp=True, maxiter=200, seed=seed)
 
 # | cost=0.7610 amp_ana: 95.1 tau_ana: 428.0 aa_shape_ana:  2.7 sens_drc_comp: 0.79 sens_drc_incomp: 0.77 sens_bnds: 101.9 sp_lim_sens: (-101.92728040317043, 101.92728040317043) amp_ext: 87.0 tau_ext: 490.8 aa_shape_ext:  4.2 amp_anaS2extR:  4.0 tau_anaS2extR: 81.6 aa_shape_anaS2extR:  3.7 amp_extS2anaR: 93.3 tau_extS2anaR: 457.8 aa_shape_extS2anaR:  2.9 resp_drc: 0.57 resp_bnds: 78.3 sp_lim_resp: (-78.31679232747805, 78.31679232747805) drc_sd:  0.4 res_dist: 1 res_mean: 253.3 res_sd: 28.3 sp_sd: 42.2 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 1 dr_lim: (0.1, 0.7) dr_shape:  3.0
 
@@ -146,10 +146,10 @@ df_para
 
 
 # %%
-fit_diff = Fit(res_ob, n_trls=5000, start_vals=prmsfit, n_caf=9)
+fit_diff_2 = Fit(res_ob, n_trls=3000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=100, disp=True, seed=seed)
+fit_diff_2.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.3,0.7), maxiter=100, disp=True, seed=seed)
 
 
 
@@ -157,7 +157,7 @@ fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=100, disp=Tru
 # ----------------- #
 
 # %%
-fit_diff_adv = Fit(res_ob, n_trls=11000, start_vals=prmsfit, n_caf=9, search_grid=True) 
+fit_diff_adv = Fit(res_ob, n_trls=5000, start_vals=prmsfit, n_caf=9, search_grid=True) 
 fit_vals_x = fit_diff_adv.start_vals.array()
 fit_vals_x
 
@@ -186,11 +186,11 @@ fit_vals_x
 # ----------------- #
 
 # %%
-fit_nelder = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
+fit_nelder = Fit(res_ob, n_trls=1000, start_vals=prmsfit, n_caf=9, search_grid=False) 
 fit_nelder.start_vals
 
 # %%
-fit_nelder.fit_data(maxiter=1000, disp=True)
+fit_nelder.fit_data(maxiter=1000, disp=True, adaptive=True)
 
 
 # %%
@@ -338,8 +338,8 @@ fit.fit_data(maxiter=5000, disp=True)
 
 
 # %%
-para = fit_diff_adv.best_prms_out
-fit_diff_adv.best_cost
+para = fit_diff_2.best_prms_out
+fit_diff_2.best_cost
 
 # %%
 model_check(res_ob, para)
@@ -348,7 +348,7 @@ model_check(res_ob, para)
 # ----------------- #
 
 # %%
-sim = Sim(fit_diff_adv.best_prms_out, n_caf=9)
+sim = Sim(fit_diff_2.best_prms_out, n_caf=9)
 Fit.calculate_cost_value_rmse(sim, res_ob)
 
 # %%
@@ -380,16 +380,16 @@ date_string = now.strftime("%Y-%m-%d")  # For date (year, month, day)
 time_string = now.strftime("%Hh_%Mmin")     # For time (hour, minute)
 
 
-fname = 'Fit_V2_E299_dr1_sp0_'+date_string+'_'+time_string+'_5Effect_R3.pkl'
+fname = 'Fit_V2_E299_dr1_sp0_'+date_string+'_'+time_string+'_4Effect.pkl'
 
 # Saving the objects:
 with open('../Fits/'+fname, 'wb') as f: 
-    pickle.dump([fit_diff_adv, seed], f)
+    pickle.dump([fit_diff, fit_diff_2, fit_diff_adv, seed], f)
 
 
 # %% 
 
-fname = 'Fit_V2_E299_dr0_sp0_2023-09-09_06h_35min.pkl'
+fname = 'Fit_V2_E299_dr1_sp0_2023-09-15_15h_02min_4Effect.pkl'
 
 # Getting back the objects:
 with open('../Fits/'+fname, 'rb') as f: 
