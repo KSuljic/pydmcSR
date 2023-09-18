@@ -160,13 +160,13 @@ def set_best_parameters(fit_diff) -> PrmsFit:
 
 
 # Define the widget function
-def model_check(res_ob, para):
+def model_check(res_ob, sim):
     # Rest of the function remains the same, assuming Prms and other functions are defined elsewhere
 
     df = res_ob.data
     df['Source'] = 'Og'
        
-    sim = Sim(para, n_trls=11000, n_caf=9)
+    # sim = Sim(para, n_trls=11000, n_caf=9)
     df_fit = sim2data(sim)
     print(Fit.calculate_cost_value_rmse(sim, res_ob))
 

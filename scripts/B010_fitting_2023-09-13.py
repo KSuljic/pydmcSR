@@ -31,7 +31,7 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 
 # %% Parameters
-seed = 42
+seed = 3
 
 # %%
 pd.options.display.max_columns = 999
@@ -149,7 +149,7 @@ df_para
 fit_diff = Fit(res_ob, n_trls=5000, start_vals=prmsfit, n_caf=9)
 
 # %%
-fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=100, disp=True, seed=seed)
+fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=300, disp=True, seed=seed)
 
 
 
@@ -157,17 +157,19 @@ fit_diff.fit_data('differential_evolution', x0=fit_vals_x, maxiter=100, disp=Tru
 # ----------------- #
 
 # %%
-fit_diff_adv = Fit(res_ob, n_trls=11000, start_vals=prmsfit, n_caf=9, search_grid=True) 
+fit_diff_adv = Fit(res_ob, n_trls=12000, start_vals=prmsfit, n_caf=9, search_grid=True) 
 fit_vals_x = fit_diff_adv.start_vals.array()
 fit_vals_x
 
 # %%
-fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.3), maxiter=50, disp=True, seed=seed)
+fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, maxiter=20, mutation=(0.2, 0.5), disp=True, seed=seed) # 
 # fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, maxiter=30, disp=True, seed=seed)
 
 # | cost=0.1623 amp_ana: 102.3 tau_ana: 346.8 aa_shape_ana:  4.0 sens_drc_comp: 0.59 sens_drc_incomp: 0.66 sens_bnds: 88.5 sp_lim_sens: (-88.54448453455268, 88.54448453455268) amp_ext: 88.4 tau_ext: 457.9 aa_shape_ext:  2.7 amp_anaS2extR: 34.7 tau_anaS2extR: 51.9 aa_shape_anaS2extR:  1.8 amp_extS2anaR: 96.1 tau_extS2anaR: 156.7 aa_shape_extS2anaR:  4.9 resp_drc: 0.43 resp_bnds: 78.1 sp_lim_resp: (-78.07396424553717, 78.07396424553717) drc_sd:  0.3 res_dist: 1 res_mean: 229.5 res_sd: 59.7 sp_sd: 101.3 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 1 dr_lim: (0.1, 0.7) dr_shape:  3.0
 # | cost=0.1567 amp_ana: 102.1 tau_ana: 344.6 aa_shape_ana:  4.0 sens_drc_comp: 0.59 sens_drc_incomp: 0.66 sens_bnds: 88.6 sp_lim_sens: (-88.55784980714024, 88.55784980714024) amp_ext: 88.3 tau_ext: 458.0 aa_shape_ext:  2.7 amp_anaS2extR: 35.2 tau_anaS2extR: 52.0 aa_shape_anaS2extR:  1.8 amp_extS2anaR: 96.1 tau_extS2anaR: 156.6 aa_shape_extS2anaR:  4.9 resp_drc: 0.43 resp_bnds: 78.0 sp_lim_resp: (-78.01843941631826, 78.01843941631826) drc_sd:  0.3 res_dist: 1 res_mean: 229.3 res_sd: 60.2 sp_sd: 99.8 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 1 dr_lim: (0.1, 0.7) dr_shape:  3.0
 # | cost=0.1397 amp_ana: 102.2 tau_ana: 342.6 aa_shape_ana:  4.0 sens_drc_comp: 0.59 sens_drc_incomp: 0.66 sens_bnds: 88.7 sp_lim_sens: (-88.71719919291417, 88.71719919291417) amp_ext: 88.4 tau_ext: 458.5 aa_shape_ext:  2.7 amp_anaS2extR: 35.2 tau_anaS2extR: 52.1 aa_shape_anaS2extR:  1.8 amp_extS2anaR: 96.1 tau_extS2anaR: 156.9 aa_shape_extS2anaR:  4.9 resp_drc: 0.43 resp_bnds: 78.4 sp_lim_resp: (-78.40013224178334, 78.40013224178334) drc_sd:  0.3 res_dist: 1 res_mean: 229.5 res_sd: 60.2 sp_sd: 99.6 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 1 dr_lim: (0.1, 0.7) dr_shape:  3.0
+
+# | cost=0.1737 amp_ana: 25.5 tau_ana: 245.5 aa_shape_ana:  2.0 sens_drc_comp: 0.53 sens_drc_incomp: 0.16 sens_bnds: 71.3 sp_lim_sens: (-71.26155671889214, 71.26155671889214) amp_ext:  2.7 tau_ext: 320.5 aa_shape_ext:  3.7 amp_anaS2extR: 67.3 tau_anaS2extR: 401.5 aa_shape_anaS2extR:  1.4 amp_extS2anaR: 43.9 tau_extS2anaR: 441.5 aa_shape_extS2anaR:  4.1 resp_drc: 0.84 resp_bnds: 68.8 sp_lim_resp: (-68.8243338417088, 68.8243338417088) drc_sd:  0.1 res_dist: 1 res_mean: 207.2 res_sd: 44.3 sp_sd:  0.1 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 0 dr_lim: (0.1, 0.7) dr_shape:  3.0
 
 
 # ----------------- #
@@ -177,7 +179,7 @@ fit_diff_adv.fit_data('differential_evolution', x0=fit_vals_x, mutation=(0.1,0.3
 print(f'Best Parameters: {fit_diff_adv.best_prms_out}')
 print(f'Best cost: {fit_diff_adv.best_cost}')
 
-prmsfit_adv = set_best_parameters(fit_diff_adv)
+prmsfit = set_best_parameters(fit_diff_adv)
 
 # %%
 fit_vals_x = fit_diff_adv.fit['x']
@@ -186,11 +188,11 @@ fit_vals_x
 # ----------------- #
 
 # %%
-fit_nelder = Fit(res_ob, n_trls=10000, start_vals=prmsfit, n_caf=9, search_grid=False) 
+fit_nelder = Fit(res_ob, n_trls=11000, start_vals=prmsfit, n_caf=9, search_grid=False) 
 fit_nelder.start_vals
 
 # %%
-fit_nelder.fit_data(maxiter=1000, disp=True)
+fit_nelder.fit_data(maxiter=10000, disp=True)
 
 
 # %%
@@ -200,7 +202,7 @@ print(f'Best cost: {fit_nelder.best_cost}')
 prmsfit = set_best_parameters(fit_nelder)
 
 # %%
-fit_vals_x = fit_nelder.fit['x']
+fit_vals_x = prmsfit.array()
 fit_vals_x
 
 
@@ -342,19 +344,23 @@ para = fit_diff_adv.best_prms_out
 fit_diff_adv.best_cost
 
 # %%
-model_check(res_ob, para)
+model_check(res_ob, sim)
 
 
 # ----------------- #
 
 # %%
-sim = Sim(fit_diff_adv.best_prms_out, n_caf=9)
-Fit.calculate_cost_value_rmse(sim, res_ob)
+cost = 1
+
+while cost > fit_diff_adv.best_cost + 0.025:
+    sim = Sim(fit_diff_adv.best_prms_out, n_trls=11000, n_caf=9)
+    cost = Fit.calculate_cost_value_rmse(sim, res_ob)
+    print(cost)
 
 # %%
 # import inspect
 
-para_dict = fit_diff.best_prms_out.__dict__
+para_dict = fit_diff_adv.best_prms_out.__dict__
 para_dict
 
 
@@ -380,20 +386,20 @@ date_string = now.strftime("%Y-%m-%d")  # For date (year, month, day)
 time_string = now.strftime("%Hh_%Mmin")     # For time (hour, minute)
 
 
-fname = 'Fit_V2_E299_dr1_sp0_'+date_string+'_'+time_string+'_5Effect_R3.pkl'
+fname = 'Fit_V2_E299_dr0_sp0_'+date_string+'_'+time_string+'_5Effect_R2.pkl'
 
 # Saving the objects:
 with open('../Fits/'+fname, 'wb') as f: 
-    pickle.dump([fit_diff_adv, seed], f)
+    pickle.dump([fit_diff, fit_diff_adv, fit_nelder, seed], f)
 
 
 # %% 
 
-fname = 'Fit_V2_E299_dr0_sp0_2023-09-09_06h_35min.pkl'
+fname = 'Fit_V2_E299_dr0_sp0_2023-09-18_17h_29min_5Effect_R2.pkl'
 
 # Getting back the objects:
 with open('../Fits/'+fname, 'rb') as f: 
-    fit_diff, seed = pickle.load(f)
+    fit_diff, fit_diff_adv, fit_nelder, seed = pickle.load(f)
 
 
 

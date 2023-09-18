@@ -114,7 +114,7 @@ class Prms:
     sp_bias: float = 0.0
 
     # drift rate
-    dr_dist: int = 1 # 0=constant, 1=normal
+    dr_dist: int = 0 # 0=constant, 1=normal
     drc_sd: int = 0.1
     dr_lim: tuple = (0.1, 0.7)
     dr_shape: float = 3
@@ -1251,8 +1251,8 @@ class PrmsFit:
     res_mean: tuple = (150, 50, 300, True, False)
     res_sd: tuple = (30, 5, 100, True, False)
 
-    drc_sd: tuple = (0.1, 0, 1.0, True, False)
-    sp_sd: tuple = (20, 0, 150, True, False)
+    drc_sd: tuple = (0.1, 0, 1.0, False, False)
+    sp_sd: tuple = (20, 0, 150, False, False)
 
     # fixed
     sp_shape: tuple = (3, 2, 4, False, False)
@@ -1618,7 +1618,7 @@ class Fit:
         # weight_cdf = 25
 
 
-        # Now, compute the costs and normalize them
+        # Now, compute the costs 
         for condition_name_th, caf_df_th in res_th.caf.items():
             condition_name_ob = condition_name_th
 
@@ -1643,7 +1643,7 @@ class Fit:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) #/ max_delta_cost
                 else:
                     cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) # / max_delta_cost
-                # total_cost += weight_delta * cost_delta
+            # total_cost += weight_delta * cost_delta
 
                 # calculating the geometric mean (because of scaling of cost values)
                 cost_vals = [cost_caf, cost_delta] # cost_cdf removed
