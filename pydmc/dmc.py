@@ -29,6 +29,8 @@ from scipy.optimize import minimize, differential_evolution
 from typing import Union
 from random import seed, uniform
 
+import cupy as cp
+
 
 @dataclass
 class Prms:
@@ -1563,91 +1565,122 @@ class Fit:
         self.res_th.prms.sp_lim_resp = (-self.res_th.prms.resp_bnds, self.res_th.prms.resp_bnds)
 
 
+    # def _get_delta(self, delta_list, condition_name):
+    #         for cond, df in delta_list:
+    #             if cond == condition_name:
+    #                 return df
+    #         raise KeyError(f"Condition name {condition_name} not found in delta list.")
+        
+    def _get_simRT(self, res_th, condition_name):
+        for cond, df in res_th.data.items():
+            if cond == condition_name:
+                return df
+        raise KeyError(f"Condition name {condition_name} not found in delta list.")
+    
+    
+    def _binned_cdf_rmse(self, simulated_data, observed_data, num_bins):
+
+        penalty_value = 1e10
+        
+        try:
+            # Define the bin edges
+            bin_edges = np.linspace(min(min(simulated_data), min(observed_data)),
+                                    max(max(simulated_data), max(observed_data)), 
+                                    num=num_bins+1)
+            
+            # Compute the histogram for simulated data
+            hist_sim, _ = np.histogram(simulated_data, bins=bin_edges, density=True)
+            
+            # Convert histogram values to CDF values
+            cdf_sim = np.cumsum(hist_sim)
+            cdf_sim /= cdf_sim[-1]  # Normalize
+            
+            # Compute the histogram for observed data
+            hist_obs, _ = np.histogram(observed_data, bins=bin_edges, density=True)
+            
+            # Convert histogram values to CDF values
+            cdf_obs = np.cumsum(hist_obs)
+            cdf_obs /= cdf_obs[-1]  # Normalize
+
+            # Calculate RMSE for the binned CDF values
+            return np.sqrt(np.mean((cdf_sim - cdf_obs) ** 2))
+        
+        except ValueError:
+            return penalty_value
+
 
 
     @staticmethod
-    def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float:
+    def calculate_cost_value_rmse(res_th: Sim, res_ob: Ob) -> float: 
 
-        def get_delta(delta_list, condition_name):
+        def _get_delta(delta_list, condition_name):
             for cond, df in delta_list:
                 if cond == condition_name:
                     return df
             raise KeyError(f"Condition name {condition_name} not found in delta list.")
         
-        def get_simRT(res_th, condition_name):
-            for cond, df in res_th.data.items():
-                if cond == condition_name:
-                    return df
-            raise KeyError(f"Condition name {condition_name} not found in delta list.")
-        
-        def binned_cdf_rmse(simulated_data, observed_data, num_bins=res_th.n_cdf):
-
-            penalty_value = 1e10
-            
-            try:
-                # Define the bin edges
-                bin_edges = np.linspace(min(min(simulated_data), min(observed_data)),
-                                        max(max(simulated_data), max(observed_data)), 
-                                        num=num_bins+1)
-                
-                # Compute the histogram for simulated data
-                hist_sim, _ = np.histogram(simulated_data, bins=bin_edges, density=True)
-                
-                # Convert histogram values to CDF values
-                cdf_sim = np.cumsum(hist_sim)
-                cdf_sim /= cdf_sim[-1]  # Normalize
-                
-                # Compute the histogram for observed data
-                hist_obs, _ = np.histogram(observed_data, bins=bin_edges, density=True)
-                
-                # Convert histogram values to CDF values
-                cdf_obs = np.cumsum(hist_obs)
-                cdf_obs /= cdf_obs[-1]  # Normalize
-
-                # Calculate RMSE for the binned CDF values
-                return np.sqrt(np.mean((cdf_sim - cdf_obs) ** 2))
-            
-            except ValueError:
-                return penalty_value
-
-        
         total_cost = 0
         
-        # weight_caf = 50
-        # weight_delta = 0.25
-        # weight_cdf = 25
-
 
         # Now, compute the costs 
         for condition_name_th, caf_df_th in res_th.caf.items():
-            condition_name_ob = condition_name_th
 
-            # CAF
+            condition_name_ob = condition_name_th
             caf_df_ob = res_ob.caf.get(condition_name_ob)
-            cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) # / max_caf_cost
-            # total_cost += weight_caf * cost_caf
+
+            # Moving computations to GPU
+            caf_df_th_gpu = cp.array(caf_df_th)
+            caf_df_ob_gpu = cp.array(caf_df_ob)
+            cost_caf = cp.sqrt(cp.mean((caf_df_th_gpu - caf_df_ob_gpu) ** 2)).item()
+
+    	    # DELTA
+            if condition_name_ob not in ["exHULU", "anHULU"]:
+                delta_df_th = _get_delta(res_th.delta, condition_name_ob)
+                delta_df_ob = _get_delta(res_ob.delta, condition_name_ob)
+
+                if condition_name_ob in ["exHULU", "anHULU"]:
+                    # Moving computations to GPU
+                    delta_df_th_gpu = cp.array(delta_df_th["mean_comp"])
+                    delta_df_ob_gpu = cp.array(delta_df_ob["mean_comp"])
+                    cost_delta = cp.sqrt(cp.mean((delta_df_th_gpu - delta_df_ob_gpu) ** 2)).item()
+                else:
+                    # Moving computations to GPU
+                    delta_df_th_gpu = cp.array(delta_df_th["mean_incomp"])
+                    delta_df_ob_gpu = cp.array(delta_df_ob["mean_incomp"])
+                    cost_delta = cp.sqrt(cp.mean((delta_df_th_gpu - delta_df_ob_gpu) ** 2)).item()
+
+                # calculating the geometric mean (because of scaling of cost values)
+                cost_vals = [cost_caf, cost_delta]
+                total_cost = np.prod(cost_vals) ** (1/len(cost_vals))
+
+
+
+            # # CAF
+            # caf_df_ob = res_ob.caf.get(condition_name_ob)
+            # cost_caf = np.sqrt(np.mean((caf_df_th - caf_df_ob) ** 2)) # / max_caf_cost
+            # # total_cost += weight_caf * cost_caf
 
             # # CDF
             # df_th = get_simRT(res_th, condition_name_th)
             # cdf_df_th = df_th[0][(df_th[1] == 0)]
             # cdf_df_ob = res_ob.data.RT[(res_ob.data['condition'] == condition_name_ob) & (res_ob.data['Error'] == 0)]
-            # cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob) # / max_cdf_cost
+            # cost_cdf = binned_cdf_rmse(cdf_df_th, cdf_df_ob, self.n_cdf) # / max_cdf_cost
             # # total_cost += weight_cdf * cost_cdf
 
-            # DELTA
-            if condition_name_ob not in ["exHULU", "anHULU"]:
-                delta_df_th = get_delta(res_th.delta, condition_name_ob)
-                delta_df_ob = get_delta(res_ob.delta, condition_name_ob)
+            # # DELTA
+            # if condition_name_ob not in ["exHULU", "anHULU"]:
+            #     delta_df_th = _get_delta(res_th.delta, condition_name_ob)
+            #     delta_df_ob = _get_delta(res_ob.delta, condition_name_ob)
 
-                if condition_name_ob in ["exHULU", "anHULU"]:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) #/ max_delta_cost
-                else:
-                    cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) # / max_delta_cost
-            # total_cost += weight_delta * cost_delta
+            #     if condition_name_ob in ["exHULU", "anHULU"]:
+            #         cost_delta = np.sqrt(np.mean((delta_df_th["mean_comp"] - delta_df_ob["mean_comp"]) ** 2)) #/ max_delta_cost
+            #     else:
+            #         cost_delta = np.sqrt(np.mean((delta_df_th["mean_incomp"] - delta_df_ob["mean_incomp"]) ** 2)) # / max_delta_cost
+            # # total_cost += weight_delta * cost_delta
 
-                # calculating the geometric mean (because of scaling of cost values)
-                cost_vals = [cost_caf, cost_delta] # cost_cdf removed
-                total_cost = np.prod(cost_vals) ** (1/len(cost_vals))
+            #     # calculating the geometric mean (because of scaling of cost values)
+            #     cost_vals = [cost_caf, cost_delta] # cost_cdf removed
+            #     total_cost = np.prod(cost_vals) ** (1/len(cost_vals))
 
         return total_cost
 
