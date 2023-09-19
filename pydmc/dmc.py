@@ -25,7 +25,7 @@ from fastkde import fastKDE
 from itertools import product
 from numba import jit, prange
 from scipy.stats.mstats import mquantiles
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import minimize, differential_evolution, dual_annealing, basinhopping
 from typing import Union
 from random import seed, uniform
 
@@ -114,7 +114,7 @@ class Prms:
     sp_bias: float = 0.0
 
     # drift rate
-    dr_dist: int = 0 # 0=constant, 1=normal
+    dr_dist: int = 1 # 0=constant, 1=normal
     drc_sd: int = 0.1
     dr_lim: tuple = (0.1, 0.7)
     dr_shape: float = 3
@@ -1251,7 +1251,7 @@ class PrmsFit:
     res_mean: tuple = (150, 50, 300, True, False)
     res_sd: tuple = (30, 5, 100, True, False)
 
-    drc_sd: tuple = (0.1, 0, 1.0, False, False)
+    drc_sd: tuple = (0.1, 0, 1.0, True, False)
     sp_sd: tuple = (20, 0, 150, False, False)
 
     # fixed
@@ -1406,6 +1406,10 @@ class Fit:
             self._fit_data_neldermead(**kwargs)
         elif method == "differential_evolution":
             self._fit_data_differential_evolution(**kwargs)
+        elif method == 'dual_annealing':
+            self._fit_data_dual_annealing(**kwargs)
+        elif method == 'basinhopping':
+            self._fit_data_basinhopping(**kwargs)
         self.plot = PlotFit(self)
 
     def _fit_data_neldermead(self, **kwargs) -> None:
@@ -1423,6 +1427,7 @@ class Fit:
     def _fit_data_differential_evolution(self, **kwargs) -> None:
         kwargs.setdefault("maxiter", 10)
         kwargs.setdefault("polish", False)
+        kwargs.setdefault("disp", True)
         self.fit = differential_evolution(
             self._function_to_minimise,
             self.start_vals.bounds(),
@@ -1431,6 +1436,28 @@ class Fit:
         #self.res_th.prms = self.best_prms_out  # Set the best parameters
         self.cost_value = self.best_cost
         self.res_th = Sim(copy.deepcopy(self.best_prms_out))
+
+
+
+    def _fit_data_dual_annealing(self, **kwargs) -> None:
+            self.fit = dual_annealing(
+                self._function_to_minimise,
+                self.start_vals.bounds(),
+                **kwargs,
+            )
+            self.cost_value = self.best_cost
+            self.res_th = Sim(copy.deepcopy(self.best_prms_out))
+
+
+    # def _fit_data_basinhopping(self, **kwargs) -> None:
+    #     kwargs.setdefault("disp", True)
+    #     self.fit = basinhopping(
+    #         self._function_to_minimise,
+    #         np.array(self.start_vals.array(0)),
+    #         **kwargs,
+    #     )
+    #     self.cost_value = self.best_cost
+    #     self.res_th = Sim(copy.deepcopy(self.best_prms_out))
 
 
     def print_summary(self) -> None:

@@ -72,12 +72,31 @@ Plot(res_ob).pdf()
 # ----------------- #
 
 
+
+
+# %%
+fit_ann = Fit(res_ob, n_trls=5000, start_vals=prmsfit, n_caf=9)
+fit_vals_x = prmsfit.array()
+fit_vals_x
+
+# %%
+fit_ann.fit_data('dual_annealing', x0=fit_vals_x, seed=seed)
+
+
+# %%
+
+# | cost=0.6975 amp_ana: 72.5 tau_ana: 496.1 aa_shape_ana:  1.3 sens_drc_comp: 0.70 sens_drc_incomp: 0.37 sens_bnds: 131.3 sp_lim_sens: (-131.2500245959239, 131.2500245959239) amp_ext: 149.1 tau_ext: 169.8 aa_shape_ext:  4.7 amp_anaS2extR: 20.6 tau_anaS2extR: 32.0 aa_shape_anaS2extR:  1.5 amp_extS2anaR: 82.7 tau_extS2anaR: 385.7 aa_shape_extS2anaR:  2.5 resp_drc: 0.59 resp_bnds: 44.4 sp_lim_resp: (-44.40904243837073, 44.40904243837073) drc_sd:  0.1 res_dist: 1 res_mean: 236.7 res_sd: 36.9 sp_sd:  0.1 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 0 dr_lim: (0.1, 0.7) dr_shape:  3.0
+print(f'Best Parameters: {fit_ann.best_prms_out}')
+print(f'Best cost: {fit_ann.best_cost}')
+
+
 # -------------- #
 # %%
 fit_diff = Fit(res_ob, n_trls=2000, start_vals=prmsfit, n_caf=9)
 
+
 # %%
-fit_diff.fit_data('differential_evolution', disp=True, maxiter=300, seed=seed)
+fit_diff.fit_data('differential_evolution', x0=fit_vals_x, disp=True, maxiter=300, seed=seed)
 
 # | cost=0.7610 amp_ana: 95.1 tau_ana: 428.0 aa_shape_ana:  2.7 sens_drc_comp: 0.79 sens_drc_incomp: 0.77 sens_bnds: 101.9 sp_lim_sens: (-101.92728040317043, 101.92728040317043) amp_ext: 87.0 tau_ext: 490.8 aa_shape_ext:  4.2 amp_anaS2extR:  4.0 tau_anaS2extR: 81.6 aa_shape_anaS2extR:  3.7 amp_extS2anaR: 93.3 tau_extS2anaR: 457.8 aa_shape_extS2anaR:  2.9 resp_drc: 0.57 resp_bnds: 78.3 sp_lim_resp: (-78.31679232747805, 78.31679232747805) drc_sd:  0.4 res_dist: 1 res_mean: 253.3 res_sd: 28.3 sp_sd: 42.2 sp_dist: 0 sp_shape:  3.0 sp_bias:  0.0 dr_dist: 1 dr_lim: (0.1, 0.7) dr_shape:  3.0
 
@@ -340,22 +359,23 @@ fit.fit_data(maxiter=5000, disp=True)
 
 
 # %%
-para = fit_diff_adv.best_prms_out
-fit_diff_adv.best_cost
-
-# %%
-model_check(res_ob, sim)
-
+para = fit_ann.best_prms_out
+fit_ann.best_cost
 
 # ----------------- #
 
 # %%
 cost = 1
 
-while cost > fit_diff_adv.best_cost + 0.025:
-    sim = Sim(fit_diff_adv.best_prms_out, n_trls=11000, n_caf=9)
+while cost > fit_ann.best_cost + 0.1:
+    sim = Sim(fit_ann.best_prms_out, n_trls=11000, n_caf=9)
     cost = Fit.calculate_cost_value_rmse(sim, res_ob)
     print(cost)
+
+    
+# %%
+model_check(res_ob, sim)
+
 
 # %%
 # import inspect
@@ -386,11 +406,11 @@ date_string = now.strftime("%Y-%m-%d")  # For date (year, month, day)
 time_string = now.strftime("%Hh_%Mmin")     # For time (hour, minute)
 
 
-fname = 'Fit_V2_E299_dr0_sp0_'+date_string+'_'+time_string+'_5Effect_R2.pkl'
+fname = 'Fit_V2_E299_dr0_sp0_'+date_string+'_'+time_string+'_ANN_5Effect_R3.pkl'
 
 # Saving the objects:
 with open('../Fits/'+fname, 'wb') as f: 
-    pickle.dump([fit_diff, fit_diff_adv, fit_nelder, seed], f)
+    pickle.dump([fit_ann, seed], f)
 
 
 # %% 
