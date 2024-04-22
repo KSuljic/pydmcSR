@@ -1,3 +1,5 @@
+Author: Kenan Suljić
+
 
 # pydmcSR
 
